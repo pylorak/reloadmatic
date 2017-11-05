@@ -1,0 +1,47 @@
+<strong>Highlights</strong>
+Ready for FF 57.0. "Smart timing" feature to avoid accidental user interruption while he interacts with a page that is set to automatically reload. Ability to reload with caches disabled. Support for browser sessions. No restart needed after installation.
+
+<strong>Usage</strong>
+To use this add-on, simply right-click anywhere in a webpage and select options under "Reload" of the context menu. Users of the addon "ReloadEvery" will find the interface very familiar. Clicking on a tab header is not yet possible due to limitations of the new WebExtensions API, but will be added as soon as technically feasible.
+
+<strong>Description of Options</strong>
+<ul>
+    <li>
+        <b>Randomize</b> - When enabled, the page will reload at random intervals between 0.5x and 1.5x of the period selected, instead of the exact period.
+    </li>
+    <li>
+        <b>Only if unsuccessful</b> - When enabled, the page will only keep reloading if it cannot be loaded due to a network or server-side error.
+    </li>
+    <li>
+        <b>Smart timing</b> - When enabled, automatic reloading will be delayed on an as-needed basis for a short time to prevent interrupting the user in his actions.
+    </li>
+    <li>
+        <b>Disable cache</b> - When enabled, automatic reloads will force a full page reload by skipping the browser's local cache.
+    </li>
+    <li>
+        <b>Reload now</b> - Will instantly reload the current page with caches disabled.
+    </li>
+    <li>
+        <b>Reload all tabs</b> - Will instantly reload all open tabs in all windows.
+    </li>
+</ul>
+
+<strong>Got a suggestion?</strong>
+Please report bugs and feature requests on <a href="https://github.com/pylorak/reloadmatic/issues" title="ReloadMatic issues on GitHub">GitHub</a>.
+
+<strong>What are the permissions used for?</strong>
+When you install this plugin, your browser will ask for the following permissions.
+<ul>
+    <li>
+        <b>Access your data for all websites</b> - The permission will allow ReloadMatic to retrieve HTTP status codes which is used to tell if the page was loaded successfully. Used for the "Only if unsuccessful" feature. Aside from the success/failure status, no other data will be accessed.
+    </li>
+    <li>
+        <b>Access browser tabs</b> - It allows to associate and differentiate settings per tab, for example to keep a different reload period for each of your tabs.
+    </li>
+    <li>
+        <b>Access recently closed tabs</b> - Allows to restore reload- and other settings if you reopen an accidentially closed tab.
+    </li>
+    <li>
+        <b>Access browser activity during navigation</b> - Used to catch navigation events, so that page reloading can be toggled on/off based on user actions.
+    </li>
+</ul>
