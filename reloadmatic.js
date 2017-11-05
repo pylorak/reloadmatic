@@ -68,7 +68,7 @@ function restartAlarm(obj) {
 
 // Handle clicking on menu entries
 browser.menus.onClicked.addListener(function (info, tab) {
-//    browser.menus.update("reloadmatic-mnu-root", { title: `Tab ID: ${tab.id}` })
+    //    browser.menus.update("reloadmatic-mnu-root", { title: `Tab ID: ${tab.id}` })
 
     if (tab.id == browser.tabs.TAB_ID_NONE) {
         return
@@ -134,7 +134,7 @@ browser.alarms.onAlarm.addListener((alarm) => {
         // fire otherwise.
         let now = Date.now()
         if (obj.smart && (obj.freezeUntil > now)) {
-            let deltaInSeconds = (obj.freezeUntil - now)/1000
+            let deltaInSeconds = (obj.freezeUntil - now) / 1000
             browser.alarms.create(obj.alarmName, { delayInMinutes: deltaInSeconds * TIME_FACTOR });
         } else {
             browser.tabs.reload(obj.tabId, { bypassCache: obj.nocache })
@@ -179,7 +179,7 @@ browser.webNavigation.onCommitted.addListener((details) => {
     }
 });
 
-function freezeReload(tabId, duration){
+function freezeReload(tabId, duration) {
     let obj = getTabProps(tabId)
     obj.freezeUntil = Date.now() + duration
 }
@@ -271,14 +271,13 @@ function refreshMenu(tabId) {
     }
 }
 
-function on_addon_load()
-{
+function on_addon_load() {
     // Our content-script is only automatically loaded to new pages.
     // This means we need to load our content script at add-on load time
     // manually to all already open tabs. Do that now.
-    browser.tabs.query({ }).then((tabs) => {
+    browser.tabs.query({}).then((tabs) => {
         for (let tab of tabs) {
-            browser.tabs.executeScript(tab.id, {file: "/content-script.js"}).then((result)=>{
+            browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
                 browser.tabs.sendMessage(tab.id, { tabId: tab.id })
             })
         }
