@@ -1,0 +1,48 @@
+{
+    "manifest_version": 2,
+    "name": "ReloadMatic",
+    "version": "1.0",
+    "author": "Karoly Pados",
+    "applications": {
+        "gecko": {
+            "id": "0.id@reloadmatic.webex",
+            "strict_min_version": "53.0"
+        }
+    },
+    "description": "Automates periodic reloading of browser tabs.",
+    "icons": {
+        "32": "icon.svg",
+        "48": "icon.svg",
+        "64": "icon.svg",
+        "96": "icon.svg",
+        "128": "icon.svg"
+    },
+    "permissions": [
+        "<all_urls>",
+        "alarms",
+        "menus",
+        "tabs",
+        "sessions",
+        "webRequest",
+        "webNavigation"
+    ],
+    "background": {
+        "scripts": [
+            "create-menus.js",
+            "reloadmatic.js"
+        ]
+    },
+    "content_scripts": [
+        {
+            "all_frames": true,
+            "match_about_blank": true,
+            "run_at": "document_start",
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content-script.js"
+            ]
+        }
+    ]
+}

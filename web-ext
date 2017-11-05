@@ -1,0 +1,12 @@
+#/bin/sh
+
+CMD=$1
+BLANKPAGE=http://www.this-page-intentionally-left-blank.org/blankpage.html
+
+if [ $CMD == "run" ]; then
+    exec web-ext run --browser-console --start-url=$BLANKPAGE
+elif [ $CMD == "build" ]; then
+    exec web-ext build --artifacts-dir=./artifacts --ignore-files=./web-ext --overwrite-dest
+else
+    exec web-ext "$@"
+fi
