@@ -22,6 +22,7 @@ function newTabProps(tabId) {
         alarmName: objKey(tabId),   // name of the alarm and key in collections
         randomize: false,           // whether "Randomize" is enabled
         loadError: false,           // whether there was an error in loading the page
+        restoring: false,           // whether a closed tab is being loaded due it being restored
         onlyOnError: false,         // whether "Only if unsuccessful" is enabled
         smart: true,                // whether "Smart timing" is enabled
         nocache: false,             // whether "Disable cache" is enabled
@@ -116,6 +117,7 @@ if (session57Available) {
                 let alarm_name = objKey(tabId)
                 obj.tabId = tabId
                 obj.alarmName = alarm_name
+                obj.restoring = true
                 state.set(alarm_name, obj)
                 refreshMenu(tabId)
                 restartAlarm(obj)
@@ -164,18 +166,31 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 browser.webNavigation.onCommitted.addListener((details) => {
     // Remove alarm if tab navigated due to a user action
-    let type = details.transitionType
-    let cancelTimer = (type != "auto_subframe") && (type != "reload")
-    if (cancelTimer) {
-        // On a user action, we cancel the timer but leave other settings alone
+    if (details.frameId == 0) {
         let tabId = details.tabId
         let obj = getTabProps(tabId)
-        obj.period = -1
-        refreshMenu(tabId)
-        restartAlarm(obj)
-        if (session57Available) {
-            browser.sessions.setTabValue(tabId, "reloadmatic", obj)
+        let type = details.transitionType
+        let cancelTimer = (type != "auto_subframe") && (type != "reload") && !obj.restoring
+        if (cancelTimer) {
+            // On a user-initiated navigation,
+            // we cancel the timer but leave other settings alone
+            let obj = getTabProps(tabId)
+            obj.period = -1
+            refreshMenu(tabId)
+            restartAlarm(obj)
+            if (session57Available) {
+                browser.sessions.setTabValue(tabId, "reloadmatic", obj)
+            }
         }
+    }
+});
+
+browser.webNavigation.onCompleted.addListener((details) => {
+    // Remove alarm if tab navigated due to a user action
+    if (details.frameId == 0) {
+        let tabId = details.tabId
+        let obj = getTabProps(tabId)
+        obj.restoring = false
     }
 });
 
