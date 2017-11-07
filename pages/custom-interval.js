@@ -36,12 +36,12 @@ function submitEvent(ev) {
             tabId: targetTabId,
             period: period
         })
-        window.close();
+        browser.windows.remove(browser.windows.WINDOW_ID_CURRENT)
     }
 };
 
 function cancelEvent(ev) {
-    window.close();
+    browser.windows.remove(browser.windows.WINDOW_ID_CURRENT)
 };
 
 function updateTitleTooltip() {
