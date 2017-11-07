@@ -130,7 +130,7 @@ if (session57Available) {
 browser.alarms.onAlarm.addListener((alarm) => {
     let obj = state.get(alarm.name)
 
-    if (!obj.onlyOnError || obj.loadError) {    // handling "Only if unsuccessfull" feature
+    if (!obj.onlyOnError || obj.loadError) {    // handling "Only if unsuccessful" feature
 
         // Delay firing alarm until time is freezeUntil,
         // fire otherwise.
@@ -144,13 +144,21 @@ browser.alarms.onAlarm.addListener((alarm) => {
     }
 });
 
+function sendContentTabId(tabId) {
+    let msg = {
+        event: "set-tab-id",
+        tabId: tabId
+    }
+    browser.tabs.sendMessage(tabId, msg)
+}
+
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (tabId == browser.tabs.TAB_ID_NONE) {
         return
     }
 
     // Tell content-script what tab it is running in
-    browser.tabs.sendMessage(tabId, { tabId: tabId })
+    sendContentTabId(tabId)
 
     if ('status' in changeInfo) {
         let obj = getTabProps(tabId)
@@ -293,7 +301,7 @@ function on_addon_load() {
     browser.tabs.query({}).then((tabs) => {
         for (let tab of tabs) {
             browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
-                browser.tabs.sendMessage(tab.id, { tabId: tab.id })
+                sendContentTabId(tab.id)
             })
         }
     })

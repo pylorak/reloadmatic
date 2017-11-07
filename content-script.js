@@ -10,7 +10,9 @@ function toBackground(event) {
 }
 
 browser.runtime.onMessage.addListener((message) => {
-    tabId = message.tabId
+    if (message.event == "set-tab-id") {
+        tabId = message.tabId
+    }
 })
 
 window.addEventListener("mousedown", evt => {
