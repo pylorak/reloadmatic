@@ -10,11 +10,6 @@ const session57Available = (typeof browser.sessions.setTabValue === "function")
 // ID of the currently focused window
 var CurrentWindowId = 0
 
-// This variable will be read by popups that
-// set a custom interval. It contains the tabId
-// they are setting the interval for.
-var tabIdForCustomInterval = null
-
 function objKey(tabId) {
     return `tab-${tabId}-alarm`;
 }
@@ -85,11 +80,10 @@ browser.menus.onClicked.addListener(function (info, tab) {
         obj.period = -1
         restartAlarm(obj)
     } else if (info.menuItemId === 'reloadmatic-mnu-period--2') {
-        tabIdForCustomInterval = tab.id
         let popupURL = browser.extension.getURL("pages/custom-interval.html");
         let createData = {
             type: "popup",
-            url: popupURL,
+            url: `${popupURL}?tabId=${tab.id}`,
             width: 400,
             height: 247
         };

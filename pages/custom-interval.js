@@ -1,11 +1,12 @@
 var background = browser.extension.getBackgroundPage()
-var targetTabId = background.tabIdForCustomInterval
 var tooltip = document.getElementById("tabTitle")
 var intervalText = document.getElementById("interval");
+var targetTabId = Number(new URL(window.location.href).searchParams.get("tabId"))
 
 function isEmpty(str) {
     return (!str || 0 === str.length);
 }
+
 function isInt(str) {
     let n = Number(str);
     return !isEmpty(str) && !isNaN(str) && (Math.floor(n) == n);
