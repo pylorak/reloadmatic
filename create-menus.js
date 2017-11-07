@@ -8,7 +8,8 @@ const reload_periods = [
     300, "Every 5 minutes",
     900, "Every 15 minutes",
     3600, "Every hour",
-    14400, "Every 4 hours"
+    14400, "Every 4 hours",
+    -2, "Custom interval"
 ]
 const num_periods = reload_periods.length
 

@@ -10,6 +10,11 @@ const session57Available = (typeof browser.sessions.setTabValue === "function")
 // ID of the currently focused window
 var CurrentWindowId = 0
 
+// This variable will be read by popups that
+// set a custom interval. It contains the tabId
+// they are setting the interval for.
+var tabIdForCustomInterval = null
+
 function objKey(tabId) {
     return `tab-${tabId}-alarm`;
 }
@@ -79,6 +84,18 @@ browser.menus.onClicked.addListener(function (info, tab) {
     if (info.menuItemId === 'reloadmatic-mnu-period--1') {
         obj.period = -1
         restartAlarm(obj)
+    } else if (info.menuItemId === 'reloadmatic-mnu-period--2') {
+        tabIdForCustomInterval = tab.id
+        let popupURL = browser.extension.getURL("pages/custom-interval.html");
+        let createData = {
+            type: "popup",
+            url: popupURL,
+            width: 400,
+            height: 247
+        };
+        browser.windows.create(createData).then((win) => {
+            browser.windows.update(win.id, { drawAttention: true })
+        });
     } else if (info.menuItemId.startsWith("reloadmatic-mnu-period")) {
         obj.period = Number(info.menuItemId.split("-")[3])
         restartAlarm(obj)
@@ -207,10 +224,26 @@ function freezeReload(tabId, duration) {
     obj.freezeUntil = Date.now() + duration
 }
 
+
+function updateTabInterval(tabId, period) {
+
+    browser.tabs.get(tabId).then((tab)=>{   // prevents saving if tab does not exist anymore
+        let obj = getTabProps(tabId)
+        obj.period = period
+        restartAlarm(obj)
+
+        if (session57Available) {
+            browser.sessions.setTabValue(tabId, "reloadmatic", obj)
+        }
+    })
+}
+
 browser.runtime.onMessage.addListener((message) => {
     if (message.event == "activity") {
         // If there is some activity in the tab, delay a potential pending reload
         freezeReload(message.tabId, 3000)
+    } else if (message.event == "set-tab-interval") {
+        updateTabInterval(message.tabId, message.period)
     }
 })
 
@@ -260,7 +293,10 @@ function disablePeriodMenus() {
     for (let i = 0; i < num_periods / 2; i++) {
         browser.menus.update(
             `reloadmatic-mnu-period-${reload_periods[i * 2]}`,
-            { checked: false }
+            {
+                checked: false,
+                title: reload_periods[i * 2 + 1]
+            }
         )
     }
 }
@@ -268,7 +304,22 @@ function disablePeriodMenus() {
 function menuSetActiveTab(tabId) {
     let obj = getTabProps(tabId)
     disablePeriodMenus()
-    browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true })
+
+    // Iterate through available presets to see if our setting
+    // corresponds to one of them or maybe it's a custom interval.
+    let custom = true
+    for (let i = 0; i < num_periods / 2; i++) {
+        if (reload_periods[i * 2] === obj.period) {
+            custom = false
+            break;
+        }
+    }
+    if (custom) {
+        browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom: ${obj.period} sec` })
+    } else {
+        browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true })
+    }
+
     browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize })
     browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError })
     browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart })
