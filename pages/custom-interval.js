@@ -4,7 +4,7 @@ var intervalText = document.getElementById("interval");
 var targetTabId = Number(new URL(window.location.href).searchParams.get("tabId"))
 
 function isEmpty(str) {
-    return (!str || 0 === str.length);
+    return (!str || (0 === str.length));
 }
 
 function isInt(str) {
@@ -12,20 +12,58 @@ function isInt(str) {
     return !isEmpty(str) && !isNaN(str) && (Math.floor(n) == n);
 }
 
+function parseInterval(str) {
+    // Try to parse input
+    let valid = false;
+    let days = 0, hours = 0, minutes = 0, seconds = 0;
+    let pat = /^\s*(\d+)\s*(days|day|d)\s*/gi;
+    let m = pat.exec(str)
+    if (m) {
+        days = Number(m[1]);
+        str = str.replace(m[0], "");
+        valid = true;
+    }
+    pat = /^\s*(\d+)\s*(hours|hour|h)\s*/gi;
+    m = pat.exec(str)
+    if (m) {
+        hours = Number(m[1]);
+        str = str.replace(m[0], "");
+        valid = true;
+    }
+    pat = /^\s*(\d+)\s*(minutes|minute|mins|min|m)\s*/gi;
+    m = pat.exec(str)
+    if (m) {
+        minutes = Number(m[1]);
+        str = str.replace(m[0], "");
+        valid = true;
+    }
+    pat = /^\s*(\d+)\s*(seconds|second|secs|sec|s)?\s*/gi;
+    m = pat.exec(str)
+    if (m) {
+        seconds = Number(m[1]);
+        str = str.replace(m[0], "");
+        valid = true;
+    }
+
+    if (valid && isEmpty(str)) {
+        let total = days*3600*24 + hours*3600 + minutes*60 + seconds;
+        return total;
+    } else {
+        return undefined
+    }
+}
+
 function submitEvent(ev) {
     ev.preventDefault();
 
-    // Validation
+    // Validation and parsing
     let valid = true;
-    let period = 0
-    if (isInt(intervalText.value)) {
-        period = Number(intervalText.value);
-        if (period < 5) {
-            alert("The smallest interval you may use is 5 seconds.")
-            valid = false;
-        }
-    } else {
-        alert("Please enter a positive integer number.")
+    let seconds = parseInterval(intervalText.value);
+    if (!seconds) {
+        alert("Invalid timer interval.");
+        valid = false;
+    } else if (seconds < 5) {
+        alert("The smallest interval you may use is 5 seconds.")
         valid = false;
     }
 
@@ -34,7 +72,7 @@ function submitEvent(ev) {
         browser.runtime.sendMessage({
             event: "set-tab-interval",
             tabId: targetTabId,
-            period: period
+            period: seconds
         })
         browser.windows.remove(browser.windows.WINDOW_ID_CURRENT)
     }

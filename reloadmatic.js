@@ -295,6 +295,35 @@ function disablePeriodMenus() {
     }
 }
 
+function formatInterval(total) {
+    let ret = ""
+    let h = Math.floor(total / 3600)
+    total -= h*3600
+    let m = Math.floor(total / 60)
+    total -= m*60
+    let s = total
+
+    if (h > 0) {
+        ret = `${ret} ${h}h`
+    }
+    if (m > 0) {
+        ret = `${ret} ${m}m`
+    }
+    if (s > 0) {
+        ret = `${ret} ${s}s`
+    }
+
+    if ( (h != 0) && (m == 0) && (s == 0) ) {
+        ret = ` ${h} hours`
+    } else if ( (h == 0) && (m != 0) && (s == 0) ) {
+        ret = ` ${m} minutes`
+    } else if ( (h == 0) && (m == 0) && (s != 0) ) {
+        ret = ` ${s} secs`
+    }
+
+    return ret
+}
+
 function menuSetActiveTab(tabId) {
     let obj = getTabProps(tabId)
     disablePeriodMenus()
@@ -309,7 +338,7 @@ function menuSetActiveTab(tabId) {
         }
     }
     if (custom) {
-        browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom: ${obj.period} sec` })
+        browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` })
     } else {
         browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true })
     }

@@ -19,8 +19,14 @@
     <form id="form-id">
       <div class="row">
         <div class="six columns" style="margin-top: 10%">
-          <label for="interval">Interval in seconds: <a class="tooltip u-pull-right">Which tab?<span class="tooltiptext" id="tabTitle"></span></a></label>
-          <input class="u-full-width" placeholder="Enter number of seconds here" id="interval" type="text">
+          <label for="interval"><a class="tooltip u-pull-right">Which tab?<span class="tooltiptext" id="tabTitle"></span></a><br/>
+          Interval in seconds: <a class="tooltip u-pull-right">Examples<span class="exampleTooltiptext">
+                - 2 minutes<br/>
+                - 1h 2m 5s<br/>
+                - 5<br/>
+                - 2 mins 1sec<br/>
+          </span></a></label>
+          <input class="u-full-width" placeholder="Enter interval, see examples" id="interval" type="text">
         </div>
       </div>
       <input class="button-primary" value="Save" type="submit">

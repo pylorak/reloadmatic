@@ -4,14 +4,14 @@
     border-bottom: 1px black;
 }
 
-.tooltip .tooltiptext {
+.tooltip span {
     visibility: hidden;
     width: 250px;
     background-color: #555;
     color: #fff;
     text-align: center;
     border-radius: 6px;
-    padding: 5px 0;
+    padding: 10px;
     position: absolute;
     z-index: 1;
     top: 150%;
@@ -21,7 +21,11 @@
     transition: opacity 0.5s;
 }
 
-.tooltip .tooltiptext::after {
+.tooltip .exampleTooltiptext {
+    text-align: left;
+}
+
+.tooltip span:after {
     content: "";
     position: absolute;
     bottom: 100%;
@@ -32,7 +36,7 @@
     border-color: transparent transparent #555 transparent;
 }
 
-.tooltip:hover .tooltiptext {
+.tooltip:hover span {
     visibility: visible;
     opacity: 1;
 }
