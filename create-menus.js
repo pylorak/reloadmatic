@@ -56,6 +56,13 @@ browser.menus.create({
 });
 
 browser.menus.create({
+    id: "reloadmatic-mnu-sticky",
+    title: "Sticky reload",
+    type: "checkbox",
+    parentId: "reloadmatic-mnu-root"
+});
+
+browser.menus.create({
     id: "reloadmatic-mnu-disable-cache",
     title: "Disable cache",
     type: "checkbox",

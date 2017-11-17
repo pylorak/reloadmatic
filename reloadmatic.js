@@ -25,6 +25,7 @@ function newTabProps(tabId) {
         keepRefreshing: false,      // true if periodic refresh should not be disabled
         onlyOnError: false,         // whether "Only if unsuccessful" is enabled
         smart: true,                // whether "Smart timing" is enabled
+        stickyReload: false,        // whether to keep reloading after page changes
         nocache: false,             // whether "Disable cache" is enabled
         period: -1,                 // canonical autoreload interval
         freezeUntil: 0,             // time until we are not allowed to reload
@@ -131,6 +132,8 @@ browser.menus.onClicked.addListener(function (info, tab) {
         obj.nocache = info.checked
     } else if (info.menuItemId === 'reloadmatic-mnu-smart') {
         obj.smart = info.checked
+    } else if (info.menuItemId === 'reloadmatic-mnu-sticky') {
+        obj.stickyReload = info.checked
     } else if (info.menuItemId === 'reloadmatic-mnu-unsuccessful') {
         obj.onlyOnError = info.checked
         restartAlarm(obj)
@@ -249,7 +252,7 @@ browser.webNavigation.onCommitted.addListener((details) => {
         let tabId = details.tabId
         let obj = getTabProps(tabId)
         let type = details.transitionType
-        let cancelTimer = (type != "auto_subframe") && (type != "reload") && !obj.keepRefreshing
+        let cancelTimer = (type != "auto_subframe") && (type != "reload") && !obj.keepRefreshing && !obj.stickyReload
         if (cancelTimer) {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
@@ -392,6 +395,7 @@ function menuSetActiveTab(tabId) {
     browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize })
     browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError })
     browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart })
+    browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload })
     browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache })
 }
 
