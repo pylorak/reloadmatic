@@ -62,8 +62,8 @@ function submitEvent(ev) {
     if (!seconds) {
         alert("Invalid timer interval.");
         valid = false;
-    } else if (seconds < 5) {
-        alert("The smallest interval you may use is 5 seconds.")
+    } else if (seconds < 1) {
+        alert("The smallest interval you may use is 1 second.")
         valid = false;
     }
 
