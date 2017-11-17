@@ -25,18 +25,11 @@
     text-align: left;
 }
 
-.tooltip span:after {
-    content: "";
-    position: absolute;
-    bottom: 100%;
-    left: 90%;
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: transparent transparent #555 transparent;
-}
-
 .tooltip:hover span {
     visibility: visible;
     opacity: 1;
+}
+
+.tooltip .rightAlignTooltip {
+    left: 20px;
 }

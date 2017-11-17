@@ -9,9 +9,36 @@ function toBackground(event) {
     }
 }
 
+function doPostRequest(url, postData) {
+    // Create form element
+    let form = document.createElement("form");
+    form.action = "";
+    form.method = "post";
+    form.target = "_top";
+    form.style.display = "none";
+
+    // Ass each value-pair to the form as hidden fields
+    if (postData) {
+        Object.keys(postData).forEach(function (key, index) {
+            let node = document.createElement("input");
+            node.type = "hidden";
+            node.name = key;
+            node.value = postData[key];
+            form.appendChild(node);
+        });
+    }
+
+    // Send form, but first it needs to be attached to the main document
+    document.body.appendChild(form);
+    form.submit();
+}
+
 browser.runtime.onMessage.addListener((message) => {
     if (message.event == "set-tab-id") {
         tabId = message.tabId
+    } else if (message.event == "reload") {
+        let loc = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.search + window.location.hash;
+        doPostRequest(loc, message.postData)
     }
 })
 

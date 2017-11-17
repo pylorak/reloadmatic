@@ -22,13 +22,15 @@ function newTabProps(tabId) {
         alarmName: objKey(tabId),   // name of the alarm and key in collections
         randomize: false,           // whether "Randomize" is enabled
         loadError: false,           // whether there was an error in loading the page
-        restoring: false,           // whether a closed tab is being loaded due it being restored
+        keepRefreshing: false,      // true if periodic refresh should not be disabled
         onlyOnError: false,         // whether "Only if unsuccessful" is enabled
         smart: true,                // whether "Smart timing" is enabled
         nocache: false,             // whether "Disable cache" is enabled
         period: -1,                 // canonical autoreload interval
         freezeUntil: 0,             // time until we are not allowed to reload
-        tabId: tabId                // id of the tab we belong to
+        tabId: tabId,               // id of the tab we belong to
+        reqMethod: "GET",           // HTTP method the page was retrieved with
+        postConfirmed: false        // true if user wants to resend POST data
     }
 }
 
@@ -54,7 +56,8 @@ function restartAlarm(obj) {
     // If period is negative we are deleting the alarm
     browser.alarms.clear(obj.alarmName)
     if (obj.period < 0) {
-        return
+        obj.postConfirmed = false;
+        return;
     }
 
     // Create new alarm
@@ -67,6 +70,46 @@ function restartAlarm(obj) {
     browser.alarms.create(obj.alarmName, { delayInMinutes: period * TIME_FACTOR });
 }
 
+function setTabPeriod(obj, period) {
+    browser.tabs.get(obj.tabId).then((tab) => {   // prevents saving if tab does not exist anymore
+
+        if ((obj.reqMethod != "GET") && (period != -1) && !obj.postConfirmed) {
+            let popupURL = browser.extension.getURL("pages/post-confirm.html");
+            let createData = {
+                type: "popup",
+                url: `${popupURL}?tabId=${obj.tabId}&period=${period}`,
+                width: 800,
+                height: 247
+            };
+            browser.windows.create(createData).then((win) => {
+                browser.windows.update(win.id, { drawAttention: true })
+            });
+            return;
+        }
+
+        if (period == -2) {
+            let popupURL = browser.extension.getURL("pages/custom-interval.html");
+            let createData = {
+                type: "popup",
+                url: `${popupURL}?tabId=${obj.tabId}`,
+                width: 400,
+                height: 247
+            };
+            browser.windows.create(createData).then((win) => {
+                browser.windows.update(win.id, { drawAttention: true })
+            });
+            return;
+        }
+
+        obj.period = period;
+        restartAlarm(obj);
+        if (session57Available) {
+            browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj)
+        }
+    });
+}
+
+
 // Handle clicking on menu entries
 browser.menus.onClicked.addListener(function (info, tab) {
     //    browser.menus.update("reloadmatic-mnu-root", { title: `Tab ID: ${tab.id}` })
@@ -77,22 +120,11 @@ browser.menus.onClicked.addListener(function (info, tab) {
     let obj = getTabProps(tab.id)
 
     if (info.menuItemId === 'reloadmatic-mnu-period--1') {
-        obj.period = -1
-        restartAlarm(obj)
+        setTabPeriod(obj, -1);
     } else if (info.menuItemId === 'reloadmatic-mnu-period--2') {
-        let popupURL = browser.extension.getURL("pages/custom-interval.html");
-        let createData = {
-            type: "popup",
-            url: `${popupURL}?tabId=${tab.id}`,
-            width: 400,
-            height: 247
-        };
-        browser.windows.create(createData).then((win) => {
-            browser.windows.update(win.id, { drawAttention: true })
-        });
+        setTabPeriod(obj, -2);
     } else if (info.menuItemId.startsWith("reloadmatic-mnu-period")) {
-        obj.period = Number(info.menuItemId.split("-")[3])
-        restartAlarm(obj)
+        setTabPeriod(obj, Number(info.menuItemId.split("-")[3]));
     } else if (info.menuItemId === 'reloadmatic-mnu-randomize') {
         obj.randomize = info.checked
     } else if (info.menuItemId === 'reloadmatic-mnu-disable-cache') {
@@ -128,7 +160,7 @@ if (session57Available) {
                 let alarm_name = objKey(tabId)
                 obj.tabId = tabId
                 obj.alarmName = alarm_name
-                obj.restoring = true
+                obj.keepRefreshing = true
                 state.set(alarm_name, obj)
                 refreshMenu(tabId)
                 restartAlarm(obj)
@@ -137,6 +169,19 @@ if (session57Available) {
         })
     })
 }
+
+browser.webRequest.onBeforeRequest.addListener((details) => {
+    let obj = state.get(objKey(details.tabId))
+    obj.reqMethod = details.method;
+    if (details.requestBody) {
+        obj.formData = details.requestBody.formData;
+    } else {
+        obj.formData = null;
+    }
+},
+    { urls: ["<all_urls>"], types: ["main_frame"] },
+    ["requestBody"]
+);
 
 browser.alarms.onAlarm.addListener((alarm) => {
     let obj = state.get(alarm.name)
@@ -150,7 +195,22 @@ browser.alarms.onAlarm.addListener((alarm) => {
             let deltaInSeconds = (obj.freezeUntil - now) / 1000
             browser.alarms.create(obj.alarmName, { delayInMinutes: deltaInSeconds * TIME_FACTOR });
         } else {
-            browser.tabs.reload(obj.tabId, { bypassCache: obj.nocache })
+            if (obj.reqMethod === "GET") {
+                browser.tabs.reload(obj.tabId, { bypassCache: obj.nocache })
+            } else {
+                // Delete old URL from history because our refresh
+                // will create a new history entry.
+                browser.tabs.get(obj.tabId).then((tab) => {
+                    browser.history.deleteUrl({ url: tab.url }).then(() => {
+                        obj.keepRefreshing = true;
+                        let msg = {
+                            event: "reload",
+                            postData: obj.formData
+                        };
+                        browser.tabs.sendMessage(obj.tabId, msg);
+                    });
+                });
+            }
         }
     }
 });
@@ -189,7 +249,7 @@ browser.webNavigation.onCommitted.addListener((details) => {
         let tabId = details.tabId
         let obj = getTabProps(tabId)
         let type = details.transitionType
-        let cancelTimer = (type != "auto_subframe") && (type != "reload") && !obj.restoring
+        let cancelTimer = (type != "auto_subframe") && (type != "reload") && !obj.keepRefreshing
         if (cancelTimer) {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
@@ -209,7 +269,7 @@ browser.webNavigation.onCompleted.addListener((details) => {
     if (details.frameId == 0) {
         let tabId = details.tabId
         let obj = getTabProps(tabId)
-        obj.restoring = false
+        obj.keepRefreshing = false
     }
 });
 
@@ -218,26 +278,12 @@ function freezeReload(tabId, duration) {
     obj.freezeUntil = Date.now() + duration
 }
 
-
-function updateTabInterval(tabId, period) {
-
-    browser.tabs.get(tabId).then((tab)=>{   // prevents saving if tab does not exist anymore
-        let obj = getTabProps(tabId)
-        obj.period = period
-        restartAlarm(obj)
-
-        if (session57Available) {
-            browser.sessions.setTabValue(tabId, "reloadmatic", obj)
-        }
-    })
-}
-
 browser.runtime.onMessage.addListener((message) => {
     if (message.event == "activity") {
         // If there is some activity in the tab, delay a potential pending reload
         freezeReload(message.tabId, 3000)
     } else if (message.event == "set-tab-interval") {
-        updateTabInterval(message.tabId, message.period)
+        setTabPeriod(getTabProps(message.tabId), message.period);
     }
 })
 
@@ -298,9 +344,9 @@ function disablePeriodMenus() {
 function formatInterval(total) {
     let ret = ""
     let h = Math.floor(total / 3600)
-    total -= h*3600
+    total -= h * 3600
     let m = Math.floor(total / 60)
-    total -= m*60
+    total -= m * 60
     let s = total
 
     if (h > 0) {
@@ -313,11 +359,11 @@ function formatInterval(total) {
         ret = `${ret} ${s}s`
     }
 
-    if ( (h != 0) && (m == 0) && (s == 0) ) {
+    if ((h != 0) && (m == 0) && (s == 0)) {
         ret = ` ${h} hours`
-    } else if ( (h == 0) && (m != 0) && (s == 0) ) {
+    } else if ((h == 0) && (m != 0) && (s == 0)) {
         ret = ` ${m} minutes`
-    } else if ( (h == 0) && (m == 0) && (s != 0) ) {
+    } else if ((h == 0) && (m == 0) && (s != 0)) {
         ret = ` ${s} secs`
     }
 
@@ -377,6 +423,13 @@ function on_addon_load() {
             browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
                 sendContentTabId(tab.id)
             })
+
+            // Already loaded tabs might be using POST *sigh*
+            // We'll just assume they do to prevent the browser
+            // for asking for confirmation.
+            let obj = getTabProps(tab.id);
+            obj.reqMethod = "POST";
+            obj.postConfirmed = true;
         }
     })
 

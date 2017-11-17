@@ -24,7 +24,8 @@
         "tabs",
         "sessions",
         "webRequest",
-        "webNavigation"
+        "webNavigation",
+        "history"
     ],
     "background": {
         "scripts": [

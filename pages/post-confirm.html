@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+  <title>ReloadMatic Custom Interval</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/skeleton.css">
+  <link rel="stylesheet" href="css/tooltip.css">
+
+</head>
+
+<body style="overflow:hidden">
+  <div class="container" id="content-id">
+
+    <form id="form-id">
+      <div class="row">
+        <div class="twelve columns" style="margin-top: 10%; padding-bottom: 20px">
+          <a class="tooltip">This page<span id="tabTitle" class="rightAlignTooltip"></span></a> used POST data. Refreshing such pages can be dangerous and can result in data or account errors on the website. Are you sure you want this page to automatically refresh?
+        </div>
+      </div>
+      <input class="button-primary" value="Yes, I know what I'm doing!" type="submit">
+      <input class="button" value="Cancel" type="button" id="cancel">
+    </form>
+
+  </div>
+</body>
+
+<script src="post-confirm.js"></script>
+
+</html>

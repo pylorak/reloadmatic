@@ -1,5 +1,5 @@
 <strong>Highlights</strong>
-Ready for FF 57.0. "Smart timing" feature prevents scheduled reloads from accidentially interrupting the user. Ability to set custom reload intervals. Ability to reload with caches disabled, once or repeatedly. Support for tab restore. Randomized intervals. No restart needed after installation or upgrade.
+Ready for FF 57.0. "Smart timing" feature prevents scheduled reloads from accidentially interrupting the user. Ability to set custom reload intervals. Ability to reload with caches disabled, once or repeatedly. Support refreshing POST data after form submission. Support for tab restore. Randomized intervals. No restart needed after installation or upgrade.
 
 <strong>Usage</strong>
 To use this add-on, simply right-click anywhere in a webpage and select options under "Reload" of the context menu. Users of the addon "ReloadEvery" will find the interface very familiar. Clicking on a tab header is not yet possible due to limitations of the new WebExtensions API, but will be added as soon as technically feasible.
@@ -33,7 +33,7 @@ Please report bugs and feature requests on <a href="https://github.com/pylorak/r
 When you install this plugin, your browser will ask for the following permissions.
 <ul>
     <li>
-        <b>Access your data for all websites</b> - The permission will allow ReloadMatic to retrieve HTTP status codes which is used to tell if the page was loaded successfully. Used for the "Only if unsuccessful" feature. Aside from the success/failure status, no other data will be accessed.
+        <b>Access your data for all websites</b> - The permission will allow ReloadMatic to retrieve HTTP status codes which is used to tell if the page was loaded successfully. Used for the "Only if unsuccessful" feature. Also needed to capture POST data for resubmission.
     </li>
     <li>
         <b>Access browser tabs</b> - It allows to associate and differentiate settings per tab, for example to keep a different reload period for each of your tabs.
