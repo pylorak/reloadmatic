@@ -1,11 +1,14 @@
+// Configuration format version
+const CONFIG_VERSION = 1
+
 // Conversion factor from seconds to minutes
 const TIME_FACTOR = 1.0 / 60.0
 
-// Here we store all our data about tabs
-const state = new Map()
-
 // true if we can use session APIs from FF 57.0
 const session57Available = (typeof browser.sessions.setTabValue === "function")
+
+// Here we store all our data about tabs
+var state = new Map()
 
 // ID of the currently focused window
 var CurrentWindowId = 0
@@ -421,27 +424,67 @@ function refreshMenu(tabId) {
     }
 }
 
+browser.runtime.onUpdateAvailable.addListener((details) => {
+    browser.storage.local.set({
+        version: CONFIG_VERSION,
+        props: state
+    }).then(() => {
+        browser.runtime.reload();
+    });
+});
+
 function on_addon_load() {
     // Our content-script is only automatically loaded to new pages.
     // This means we need to load our content script at add-on load time
     // manually to all already open tabs. Do that now.
-    browser.tabs.query({}).then((tabs) => {
-        for (let tab of tabs) {
-            browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
-                sendContentTabId(tab.id)
-            })
 
-            // Already loaded tabs might be using POST *sigh*
-            // We'll just assume they do to prevent the browser
-            // for asking for confirmation.
-            let obj = getTabProps(tab.id);
-            obj.reqMethod = "POST";
-            obj.postConfirmed = true;
+    browser.storage.local.get().then((results) => {
+
+        let loadDefaults = true;
+
+        // Try to load previous settings
+        try {
+            if (results && results.version && results.props) {
+                if (results.version <= CONFIG_VERSION) {
+                    // Restore settings after an upgrade
+                    state = results.props
+
+                    // Reapply timers
+                    for (var [key, obj] of state) {
+                        setTabPeriod(obj, obj.period);
+                    }
+
+                    loadDefaults = false;
+                }
+            }
         }
-    })
+        catch (err) { }
 
-    // Update menu to show status of active tab in current window
-    refreshMenu(undefined)
+        if (loadDefaults) {
+            browser.tabs.query({}).then((tabs) => {
+                for (let tab of tabs) {
+                    browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
+                        sendContentTabId(tab.id)
+                    })
+
+                    // Already loaded tabs might be using POST *sigh*
+                    // We'll just assume they do to prevent the browser
+                    // for asking for confirmation.
+                    let obj = getTabProps(tab.id);
+                    obj.reqMethod = "POST";
+                    obj.postConfirmed = true;
+                }
+            });
+        }
+
+        // For now the storage area is only used to support upgrades.
+        // Hence we clear it after loading the plugin because we won't
+        // need it anymore.
+        browser.storage.local.clear()
+
+        // Update menu to show status of active tab in current window
+        refreshMenu(undefined)
+    });
 }
 
 on_addon_load()
