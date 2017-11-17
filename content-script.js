@@ -17,7 +17,7 @@ function doPostRequest(url, postData) {
     form.target = "_top";
     form.style.display = "none";
 
-    // Ass each value-pair to the form as hidden fields
+    // Pass each value-pair to the form as hidden fields
     if (postData) {
         Object.keys(postData).forEach(function (key, index) {
             let node = document.createElement("input");
