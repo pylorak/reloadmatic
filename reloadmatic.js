@@ -74,6 +74,8 @@ function restartAlarm(obj) {
 function setTabPeriod(obj, period) {
     browser.tabs.get(obj.tabId).then((tab) => {   // prevents saving if tab does not exist anymore
 
+        // If this page was requested using POST, make sure the user
+        // knows the risks and really wants to refresh
         if ((obj.reqMethod != "GET") && (period != -1) && !obj.postConfirmed) {
             let popupURL = browser.extension.getURL("pages/post-confirm.html");
             let createData = {
@@ -88,6 +90,7 @@ function setTabPeriod(obj, period) {
             return;
         }
 
+        // Custom interval
         if (period == -2) {
             let popupURL = browser.extension.getURL("pages/custom-interval.html");
             let createData = {
