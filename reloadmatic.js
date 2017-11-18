@@ -171,7 +171,7 @@ if (session57Available) {
                 obj.alarmName = alarm_name
                 obj.keepRefreshing = true
                 state.set(alarm_name, obj)
-                refreshMenu(tabId)
+                refreshMenu(undefined)
                 restartAlarm(obj)
                 browser.sessions.setTabValue(tabId, "reloadmatic", obj)
             }
@@ -262,9 +262,8 @@ browser.webNavigation.onCommitted.addListener((details) => {
         if (cancelTimer) {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
-            let obj = getTabProps(tabId)
             obj.period = -1
-            refreshMenu(tabId)
+            refreshMenu(undefined)
             restartAlarm(obj)
             if (session57Available) {
                 browser.sessions.setTabValue(tabId, "reloadmatic", obj)
@@ -297,7 +296,7 @@ browser.runtime.onMessage.addListener((message) => {
 })
 
 browser.tabs.onActivated.addListener((info) => {
-    // Delay reload on acitivty
+    // Delay reload on activity
     freezeReload(info.tabId, 5000)
 
     // Update menu for newly activated tab
