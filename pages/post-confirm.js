@@ -1,7 +1,7 @@
 var background = browser.extension.getBackgroundPage()
-var tooltip = document.getElementById("tabTitle")
 var targetTabId = Number(new URL(window.location.href).searchParams.get("tabId"))
 var period = Number(new URL(window.location.href).searchParams.get("period"))
+var tooltip;
 
 
 function submitEvent(ev) {
@@ -29,6 +29,7 @@ function updateTitleTooltip() {
 }
 
 document.addEventListener("DOMContentLoaded", (event) => {
+    tooltip = document.getElementById("tabTitle")
     document.getElementById("form-id").addEventListener('submit', submitEvent, false)
     document.getElementById("cancel").addEventListener('click', cancelEvent, false)
 

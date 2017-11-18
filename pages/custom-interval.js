@@ -1,7 +1,7 @@
 var background = browser.extension.getBackgroundPage()
-var tooltip = document.getElementById("tabTitle")
-var intervalText = document.getElementById("interval");
 var targetTabId = Number(new URL(window.location.href).searchParams.get("tabId"))
+var tooltip;
+var intervalText;
 
 function isEmpty(str) {
     return (!str || (0 === str.length));
@@ -89,6 +89,9 @@ function updateTitleTooltip() {
 }
 
 document.addEventListener("DOMContentLoaded", (event) => {
+    tooltip = document.getElementById("tabTitle")
+    intervalText = document.getElementById("interval");
+
     document.getElementById("form-id").addEventListener('submit', submitEvent, false)
     document.getElementById("cancel").addEventListener('click', cancelEvent, false)
 
