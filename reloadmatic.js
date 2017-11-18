@@ -13,6 +13,8 @@ var state = new Map()
 // ID of the currently focused window
 var CurrentWindowId = 0
 
+var DefaultProps;
+
 function objKey(tabId) {
     return `tab-${tabId}-alarm`;
 }
@@ -21,13 +23,13 @@ function objKey(tabId) {
 // that describes all add-on related properties of a
 // browser tab.
 function newTabProps(tabId) {
-    return {
+    let ret = {
         alarmName: objKey(tabId),   // name of the alarm and key in collections
         randomize: false,           // whether "Randomize" is enabled
         loadError: false,           // whether there was an error in loading the page
         keepRefreshing: false,      // true if periodic refresh should not be disabled
         onlyOnError: false,         // whether "Only if unsuccessful" is enabled
-        smart: true,                // whether "Smart timing" is enabled
+        smart: false,                // whether "Smart timing" is enabled
         stickyReload: false,        // whether to keep reloading after page changes
         nocache: false,             // whether "Disable cache" is enabled
         period: -1,                 // canonical autoreload interval
@@ -35,7 +37,14 @@ function newTabProps(tabId) {
         tabId: tabId,               // id of the tab we belong to
         reqMethod: "GET",           // HTTP method the page was retrieved with
         postConfirmed: false        // true if user wants to resend POST data
-    }
+    };
+
+    // Apply default user options
+    Object.keys(DefaultProps).forEach(function(key,index) {
+        ret[key] = DefaultProps[key];
+    });
+
+    return ret;
 }
 
 function getTabProps(tabId) {
@@ -432,6 +441,30 @@ browser.runtime.onUpdateAvailable.addListener((details) => {
     });
 });
 
+function LoadDefaultsAsync() {
+    return new Promise((resolve, reject) => {
+        browser.storage.local.get("defaults")
+            .then((results) => {
+                if (results && results.defaults) {
+                    DefaultProps = results.defaults;
+                    resolve(DefaultProps);
+                } else {
+                    throw null;
+                }
+            })
+            .catch((e) => {
+                DefaultProps = {
+                    randomize: false,
+                    onlyOnError: false,
+                    smart: true,
+                    stickyReload: false,
+                    nocache: false
+                };
+                resolve(DefaultProps);
+            });
+    });
+}
+
 function on_addon_load() {
     // Our content-script is only automatically loaded to new pages.
     // This means we need to load our content script at add-on load time
@@ -439,7 +472,7 @@ function on_addon_load() {
 
     browser.storage.local.get().then((results) => {
 
-        let loadDefaults = true;
+        let upgrading = false;
 
         // Try to load previous settings
         try {
@@ -453,13 +486,13 @@ function on_addon_load() {
                         setTabPeriod(obj, obj.period);
                     }
 
-                    loadDefaults = false;
+                    upgrading = true;
                 }
             }
         }
         catch (err) { }
 
-        if (loadDefaults) {
+        if (!upgrading) {
             browser.tabs.query({}).then((tabs) => {
                 for (let tab of tabs) {
                     browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
@@ -476,13 +509,13 @@ function on_addon_load() {
             });
         }
 
-        // For now the storage area is only used to support upgrades.
-        // Hence we clear it after loading the plugin because we won't
-        // need it anymore.
-        browser.storage.local.clear()
+        // Remove stuff that we only needed for the upgrade
+        browser.storage.local.remove(["version", "props"])
 
-        // Update menu to show status of active tab in current window
-        refreshMenu(undefined)
+        LoadDefaultsAsync().then((defaults) => {
+            // Update menu to show status of active tab in current window
+            refreshMenu(undefined)
+        });
     });
 }
 

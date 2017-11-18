@@ -28,6 +28,10 @@
         "history",
         "storage"
     ],
+    "options_ui": {
+        "page": "pages/options.html",
+        "browser_style": true
+    },
     "background": {
         "scripts": [
             "create-menus.js",
