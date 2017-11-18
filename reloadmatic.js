@@ -217,11 +217,11 @@ browser.alarms.onAlarm.addListener((alarm) => {
                             postData: obj.formData
                         };
                         browser.tabs.sendMessage(obj.tabId, msg);
-                    });
-                });
-            }
-        }
-    }
+                    }); // history.deleteUrl
+                }); // tabs.get
+            }   // if GET
+        }   // smart
+    }   // if onlyOnError ...
 });
 
 function sendContentTabId(tabId) {
