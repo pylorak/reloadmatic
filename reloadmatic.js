@@ -40,7 +40,7 @@ function newTabProps(tabId) {
     };
 
     // Apply default user options
-    Object.keys(DefaultProps).forEach(function(key,index) {
+    Object.keys(DefaultProps).forEach(function (key, index) {
         ret[key] = DefaultProps[key];
     });
 
@@ -492,13 +492,13 @@ function on_addon_load() {
         }
         catch (err) { }
 
-        if (!upgrading) {
-            browser.tabs.query({}).then((tabs) => {
-                for (let tab of tabs) {
-                    browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
-                        sendContentTabId(tab.id)
-                    })
+        browser.tabs.query({}).then((tabs) => {
+            for (let tab of tabs) {
+                browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
+                    sendContentTabId(tab.id)
+                })
 
+                if (!upgrading) {
                     // Already loaded tabs might be using POST *sigh*
                     // We'll just assume they do to prevent the browser
                     // for asking for confirmation.
@@ -506,8 +506,8 @@ function on_addon_load() {
                     obj.reqMethod = "POST";
                     obj.postConfirmed = true;
                 }
-            });
-        }
+            }
+        });
 
         // Remove stuff that we only needed for the upgrade
         browser.storage.local.remove(["version", "props"])
