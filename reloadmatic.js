@@ -297,16 +297,16 @@ browser.alarms.onAlarm.addListener((alarm) => {
             } else {
                 // Delete old URL from history because our refresh
                 // will create a new history entry.
-                browser.tabs.get(obj.tabId).then((tab) => {
-                    browser.history.deleteUrl({ url: tab.url }).then(() => {
+                browser.tabs.get(obj.tabId)
+                    .then((tab) => browser.history.deleteUrl({ url: tab.url }))
+                    .then(() => {
                         obj.keepRefreshing = true;
                         let msg = {
                             event: "reload",
                             postData: obj.formData
                         };
-                        browser.tabs.sendMessage(obj.tabId, msg);
-                    }); // history.deleteUrl
-                }); // tabs.get
+                        return browser.tabs.sendMessage(obj.tabId, msg);
+                    });
             }   // if GET
         }   // smart
     }   // if onlyOnError ...
@@ -317,12 +317,12 @@ function sendContentTabId(tabId) {
         event: "set-tab-id",
         tabId: tabId
     }
-    browser.tabs.sendMessage(tabId, msg)
+    return browser.tabs.sendMessage(tabId, msg)
 }
 
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (tabId == browser.tabs.TAB_ID_NONE) {
-        return
+        return;
     }
 
     // Tell content-script what tab it is running in
@@ -398,9 +398,10 @@ browser.windows.onFocusChanged.addListener((windowId) => {
     CurrentWindowId = windowId
 
     browser.tabs.query({ windowId: CurrentWindowId, active: true }).then((tabs) => {
-        for (let tab of tabs) {
+        if (tabs.length > 0) {
+            let tab = tabs[0];
             freezeReload(tab.id, 5000)
-            refreshMenu(tab.id)
+            return refreshMenu(tab.id)
         }
     })
 })
@@ -525,27 +526,26 @@ browser.runtime.onUpdateAvailable.addListener((details) => {
 });
 
 function LoadDefaultsAsync() {
-    return new Promise((resolve, reject) => {
-        browser.storage.local.get("defaults")
-            .then((results) => {
-                if (results && results.defaults) {
-                    DefaultProps = results.defaults;
-                    resolve(DefaultProps);
-                } else {
-                    throw null;
-                }
-            })
-            .catch((e) => {
-                DefaultProps = {
-                    randomize: false,
-                    onlyOnError: false,
-                    smart: true,
-                    stickyReload: false,
-                    nocache: false
-                };
-                resolve(DefaultProps);
-            });
-    });
+    return Promise.resolve()
+        .then(() => {
+            return browser.storage.local.get("defaults")
+        }).then((results) => {
+            if (results && results.defaults) {
+                DefaultProps = results.defaults;
+                return DefaultProps;
+            } else {
+                throw null;
+            }
+        }).catch(() => {
+            DefaultProps = {
+                randomize: false,
+                onlyOnError: false,
+                smart: true,
+                stickyReload: false,
+                nocache: false
+            };
+            return DefaultProps;
+        });
 }
 
 function on_addon_load() {
@@ -553,47 +553,55 @@ function on_addon_load() {
     // This means we need to load our content script at add-on load time
     // manually to all already open tabs. Do that now.
 
-    LoadDefaultsAsync().then((defaults) => {
-        browser.storage.local.get().then((results) => {
+    LoadDefaultsAsync()
+        .then(() => browser.storage.local.get())
+        .then((results) => {
 
             let upgrading = false;
 
-            // Try to load previous settings after an upgrade
-            try {
-                if (results && results.version && results.props) {
-                    if (results.version <= CONFIG_VERSION) {
+            if (results && results.version && results.props) {
+                if (results.version <= CONFIG_VERSION) {
 
-                        let newState = new Map(results.props)
+                    let newState = new Map(results.props)
 
-                        for (var [key, obj] of newState) {
+                    for (var [key, obj] of newState) {
 
-                            // Migrate settings from old version
-                            let newObj = newTabProps(obj.tabId);
-                            migratePropObj(newObj, obj);
-                            state.set(newObj.alarmName, newObj);
+                        // Migrate settings from old version
+                        let newObj = newTabProps(obj.tabId);
+                        migratePropObj(newObj, obj);
+                        state.set(newObj.alarmName, newObj);
 
-                            // Reapply timers
-                            setTabPeriod(newObj, newObj.period);
-                        }
-
-                        upgrading = true;
+                        // Reapply timers
+                        setTabPeriod(newObj, newObj.period);
                     }
+
+                    upgrading = true;
                 }
             }
-            catch (err) { }
 
+            return upgrading;
+        })
+        .catch(() => Promise.resolve(false))
+        .then((upgrading) => {
             // Remove stuff that we only needed for the upgrade
             browser.storage.local.remove(["version", "props"])
 
-            browser.storage.local.get("urlMemory").then((results) => {
-                if (results && results.urlMemory) {
-                    urlMemory = new Map(results.urlMemory);
-                }
-                browser.tabs.query({}).then((tabs) => {
+            browser.storage.local.get("urlMemory")
+                .then((results) => {
+                    let p = browser.tabs.query({});
+                    if (results && results.urlMemory) {
+                        urlMemory = new Map(results.urlMemory);
+                    }
+                    return p;
+                })
+                .then((tabs) => {
+                    let promises = [];
                     for (let tab of tabs) {
-                        browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
-                            sendContentTabId(tab.id)
-                        })
+                        promises.push(
+                            browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
+                                sendContentTabId(tab.id)
+                            })
+                        );
 
                         let obj = getTabProps(tab.id);
                         if (!upgrading) {
@@ -603,14 +611,15 @@ function on_addon_load() {
                             obj.reqMethod = "POST";
                             obj.postConfirmed = true;
                         }
-                        rememberGet(obj);
+                        promises.push(rememberGet(obj));
                     }
+                    return Promise.all(promises);
+                })
+                .then(() => {
                     // Update menu to show status of active tab in current window
-                    refreshMenu(undefined)
-                });
-            });
+                    refreshMenu();
+                })
         });
-    });
 }
 
 on_addon_load()

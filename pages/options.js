@@ -17,7 +17,7 @@ function storeSettings(evt) {
         defaults: defs
     })
     .then(() => {
-        return background.LoadDefaultsAsync();
+        background.LoadDefaultsAsync();
     });
 }
 
