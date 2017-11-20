@@ -6,6 +6,10 @@ h3 {
     margin-bottom: 20px;
 }
 
+form{
+    margin-bottom: 20px;
+}
+
 .warning{
     color: #cf0000;
 }

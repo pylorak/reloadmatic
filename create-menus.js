@@ -35,6 +35,13 @@ browser.menus.create({
 });
 
 browser.menus.create({
+    id: "reloadmatic-mnu-remember",
+    title: "Remember page",
+    type: "checkbox",
+    parentId: "reloadmatic-mnu-root"
+});
+
+browser.menus.create({
     id: "reloadmatic-mnu-randomize",
     title: "Randomize",
     type: "checkbox",

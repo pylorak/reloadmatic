@@ -39,6 +39,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
         inputs[i].addEventListener('change', storeSettings);
     }
 
+    document.getElementById("btnClearRememberedPages").addEventListener('click', () => {
+        browser.storage.local.remove(["urlMemory"]).then(() => {
+            background.urlMemory = new Map();
+            alert("Remembered pages have been cleared.")
+        });
+    });
+
     background.LoadDefaultsAsync().then((defaults) => {
         chkDefRandomize.checked = defaults.randomize;
         chkDefOnlyUnsuccessful.checked = defaults.onlyOnError;

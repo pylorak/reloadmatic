@@ -10,6 +10,9 @@ const session57Available = (typeof browser.sessions.setTabValue === "function")
 // Here we store all our data about tabs
 var state = new Map()
 
+// Here we store all pages for the "Remember" feature
+var urlMemory = new Map();
+
 // ID of the currently focused window
 var CurrentWindowId = 0
 
@@ -24,15 +27,21 @@ function objKey(tabId) {
 // browser tab.
 function newTabProps(tabId) {
     let ret = {
-        alarmName: objKey(tabId),   // name of the alarm and key in collections
+        // User Settings
+        // ******************************
         randomize: false,           // whether "Randomize" is enabled
         loadError: false,           // whether there was an error in loading the page
-        keepRefreshing: false,      // true if periodic refresh should not be disabled
-        onlyOnError: false,         // whether "Only if unsuccessful" is enabled
         smart: false,                // whether "Smart timing" is enabled
+        onlyOnError: false,         // whether "Only if unsuccessful" is enabled
         stickyReload: false,        // whether to keep reloading after page changes
         nocache: false,             // whether "Disable cache" is enabled
+        remember: false,            // whether settings for this URL will be remembered
         period: -1,                 // canonical autoreload interval
+
+        // Internal State
+        // ******************************
+        alarmName: objKey(tabId),   // name of the alarm and key in collections
+        keepRefreshing: false,      // true if periodic refresh should not be disabled
         freezeUntil: 0,             // time until we are not allowed to reload
         tabId: tabId,               // id of the tab we belong to
         reqMethod: "GET",           // HTTP method the page was retrieved with
@@ -83,6 +92,14 @@ function restartAlarm(obj) {
     browser.alarms.create(obj.alarmName, { delayInMinutes: period * TIME_FACTOR });
 }
 
+function applyTabProps(obj) {
+    refreshMenu(undefined)
+    restartAlarm(obj)
+    if (session57Available) {
+        browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj)
+    }
+}
+
 function setTabPeriod(obj, period) {
     browser.tabs.get(obj.tabId).then((tab) => {   // prevents saving if tab does not exist anymore
 
@@ -117,14 +134,66 @@ function setTabPeriod(obj, period) {
             return;
         }
 
+        // Set period truely
         obj.period = period;
-        restartAlarm(obj);
-        if (session57Available) {
-            browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj)
+        applyTabProps(obj);
+        rememberSet(obj);
+    });
+}
+
+function rememberSet(obj) {
+    // We need the tab's URL
+    browser.tabs.get(obj.tabId).then((tab) => {
+
+        // We use only portions of the URL to generalize it to a certain page
+        // without protocol or query parameters
+        let url = parseUri(tab.url);
+        url = url.authority + url.path;
+
+        // Store (or delete)
+        if (obj.remember) {
+            urlMemory.set(url, clone(obj));
+        } else {
+            urlMemory.delete(url);
+        }
+
+        browser.storage.local.set({
+            // We can only serialize Map objects "unpacked"
+            urlMemory: [...urlMemory]
+        });
+    });
+}
+
+function migratePropObj(newObj, oldObj) {
+    let tmp = clone(oldObj);
+    tmp.tabId = newObj.tabId;
+    tmp.alarmName = newObj.alarmName;
+    Object.keys(newObj).forEach(function (key, index) {
+        if (tmp.hasOwnProperty(key)) {
+            newObj[key] = tmp[key];
         }
     });
 }
 
+function rememberGet(obj) {
+    browser.tabs.get(obj.tabId).then((tab) => {
+        // Reconstruct the URL as we did while saving
+        let url = parseUri(tab.url);
+        url = url.authority + url.path;
+
+        if (urlMemory.has(url)) {
+            // Load stored settings
+            migratePropObj(obj, urlMemory.get(url));
+
+            // Apply settings
+            applyTabProps(obj);
+        }
+    });
+}
+
+function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
 
 // Handle clicking on menu entries
 browser.menus.onClicked.addListener(function (info, tab) {
@@ -143,14 +212,22 @@ browser.menus.onClicked.addListener(function (info, tab) {
         setTabPeriod(obj, Number(info.menuItemId.split("-")[3]));
     } else if (info.menuItemId === 'reloadmatic-mnu-randomize') {
         obj.randomize = info.checked
+        rememberSet(obj);
+    } else if (info.menuItemId === 'reloadmatic-mnu-remember') {
+        obj.remember = info.checked
+        rememberSet(obj);
     } else if (info.menuItemId === 'reloadmatic-mnu-disable-cache') {
         obj.nocache = info.checked
+        rememberSet(obj);
     } else if (info.menuItemId === 'reloadmatic-mnu-smart') {
         obj.smart = info.checked
+        rememberSet(obj);
     } else if (info.menuItemId === 'reloadmatic-mnu-sticky') {
         obj.stickyReload = info.checked
+        rememberSet(obj);
     } else if (info.menuItemId === 'reloadmatic-mnu-unsuccessful') {
         obj.onlyOnError = info.checked
+        rememberSet(obj);
         restartAlarm(obj)
     } else if (info.menuItemId === 'reloadmatic-mnu-reload') {
         browser.tabs.reload(tab.id, { bypassCache: true })
@@ -180,19 +257,17 @@ if (session57Available) {
                 obj.alarmName = alarm_name
                 obj.keepRefreshing = true
                 state.set(alarm_name, obj)
-                refreshMenu(undefined)
-                restartAlarm(obj)
-                browser.sessions.setTabValue(tabId, "reloadmatic", obj)
+                applyTabProps(obj)
             }
         })
     })
 }
 
 browser.webRequest.onBeforeRequest.addListener((details) => {
-    let obj = state.get(objKey(details.tabId))
+    let obj = getTabProps(details.tabId);
     obj.reqMethod = details.method;
-    if (details.requestBody) {
-        obj.formData = details.requestBody.formData;
+    if ((obj.reqMethod != "GET") && details.requestBody) {
+        obj.formData = clone(details.requestBody.formData);
     } else {
         obj.formData = null;
     }
@@ -267,17 +342,19 @@ browser.webNavigation.onCommitted.addListener((details) => {
         let tabId = details.tabId
         let obj = getTabProps(tabId)
         let type = details.transitionType
-        let cancelTimer = (type != "auto_subframe") && (type != "reload") && !obj.keepRefreshing && !obj.stickyReload
+        let reloading = !((type != "auto_subframe") && (type != "reload"))
+        let cancelTimer = !reloading && !obj.keepRefreshing && !obj.stickyReload
+        if (!reloading) {
+            obj.remember = false;
+        }
         if (cancelTimer) {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
             obj.period = -1
-            refreshMenu(undefined)
-            restartAlarm(obj)
-            if (session57Available) {
-                browser.sessions.setTabValue(tabId, "reloadmatic", obj)
-            }
+            applyTabProps(obj);
         }
+        // TODO: race condition with above applyTabProps()
+        rememberGet(obj);
     }
 });
 
@@ -406,6 +483,7 @@ function menuSetActiveTab(tabId) {
         browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true })
     }
 
+    browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember })
     browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize })
     browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError })
     browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart })
@@ -435,7 +513,7 @@ function refreshMenu(tabId) {
 browser.runtime.onUpdateAvailable.addListener((details) => {
     browser.storage.local.set({
         version: CONFIG_VERSION,
-        props: state
+        props: [...state]
     }).then(() => {
         browser.runtime.reload();
     });
@@ -470,51 +548,62 @@ function on_addon_load() {
     // This means we need to load our content script at add-on load time
     // manually to all already open tabs. Do that now.
 
-    browser.storage.local.get().then((results) => {
+    LoadDefaultsAsync().then((defaults) => {
+        browser.storage.local.get().then((results) => {
 
-        let upgrading = false;
+            let upgrading = false;
 
-        // Try to load previous settings
-        try {
-            if (results && results.version && results.props) {
-                if (results.version <= CONFIG_VERSION) {
-                    // Restore settings after an upgrade
-                    state = results.props
+            // Try to load previous settings after an upgrade
+            try {
+                if (results && results.version && results.props) {
+                    if (results.version <= CONFIG_VERSION) {
 
-                    // Reapply timers
-                    for (var [key, obj] of state) {
-                        setTabPeriod(obj, obj.period);
+                        let newState = new Map(results.props)
+
+                        for (var [key, obj] of newState) {
+
+                            // Migrate settings from old version
+                            let newObj = newTabProps(obj.tabId);
+                            migratePropObj(newObj, obj);
+                            state.set(newObj.alarmName, newObj);
+
+                            // Reapply timers
+                            setTabPeriod(newObj, newObj.period);
+                        }
+
+                        upgrading = true;
                     }
-
-                    upgrading = true;
                 }
             }
-        }
-        catch (err) { }
+            catch (err) { }
 
-        browser.tabs.query({}).then((tabs) => {
-            for (let tab of tabs) {
-                browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
-                    sendContentTabId(tab.id)
-                })
+            // Remove stuff that we only needed for the upgrade
+            browser.storage.local.remove(["version", "props"])
 
-                if (!upgrading) {
-                    // Already loaded tabs might be using POST *sigh*
-                    // We'll just assume they do to prevent the browser
-                    // for asking for confirmation.
-                    let obj = getTabProps(tab.id);
-                    obj.reqMethod = "POST";
-                    obj.postConfirmed = true;
+            browser.storage.local.get("urlMemory").then((results) => {
+                if (results && results.urlMemory) {
+                    urlMemory = new Map(results.urlMemory);
                 }
-            }
-        });
+                browser.tabs.query({}).then((tabs) => {
+                    for (let tab of tabs) {
+                        browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
+                            sendContentTabId(tab.id)
+                        })
 
-        // Remove stuff that we only needed for the upgrade
-        browser.storage.local.remove(["version", "props"])
-
-        LoadDefaultsAsync().then((defaults) => {
-            // Update menu to show status of active tab in current window
-            refreshMenu(undefined)
+                        let obj = getTabProps(tab.id);
+                        if (!upgrading) {
+                            // Already loaded tabs might be using POST *sigh*
+                            // We'll just assume they do to prevent the browser
+                            // for asking for confirmation.
+                            obj.reqMethod = "POST";
+                            obj.postConfirmed = true;
+                        }
+                        rememberGet(obj);
+                    }
+                    // Update menu to show status of active tab in current window
+                    refreshMenu(undefined)
+                });
+            });
         });
     });
 }
