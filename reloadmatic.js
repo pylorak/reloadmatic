@@ -93,11 +93,13 @@ function restartAlarm(obj) {
 }
 
 function applyTabProps(obj) {
-    refreshMenu(undefined)
-    restartAlarm(obj)
-    if (session57Available) {
-        browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj)
-    }
+    return refreshMenu()
+        .then(() => restartAlarm(obj))
+        .then(() => {
+            if (session57Available) {
+                return browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj);
+            }
+        });
 }
 
 function setTabPeriod(obj, period) {
@@ -143,7 +145,7 @@ function setTabPeriod(obj, period) {
 
 function rememberSet(obj) {
     // We need the tab's URL
-    browser.tabs.get(obj.tabId).then((tab) => {
+    return browser.tabs.get(obj.tabId).then((tab) => {
 
         // We use only portions of the URL to generalize it to a certain page
         // without protocol or query parameters
@@ -157,7 +159,7 @@ function rememberSet(obj) {
             urlMemory.delete(url);
         }
 
-        browser.storage.local.set({
+        return browser.storage.local.set({
             // We can only serialize Map objects "unpacked"
             urlMemory: [...urlMemory]
         });
@@ -176,7 +178,7 @@ function migratePropObj(newObj, oldObj) {
 }
 
 function rememberGet(obj) {
-    browser.tabs.get(obj.tabId).then((tab) => {
+    return browser.tabs.get(obj.tabId).then((tab) => {
         // Reconstruct the URL as we did while saving
         let url = parseUri(tab.url);
         url = url.authority + url.path;
@@ -186,7 +188,9 @@ function rememberGet(obj) {
             migratePropObj(obj, urlMemory.get(url));
 
             // Apply settings
-            applyTabProps(obj);
+            return applyTabProps(obj);
+        } else {
+            return undefined;
         }
     });
 }
@@ -351,10 +355,11 @@ browser.webNavigation.onCommitted.addListener((details) => {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
             obj.period = -1
-            applyTabProps(obj);
+            applyTabProps(obj)
+                .then(() => rememberGet(obj));
+        } else {
+            rememberGet(obj);
         }
-        // TODO: race condition with above applyTabProps()
-        rememberGet(obj);
     }
 });
 
@@ -424,15 +429,19 @@ browser.webRequest.onCompleted.addListener(webRequestComplete, { urls: ["<all_ur
 ***********************************************/
 
 function disablePeriodMenus() {
+    let promises = [];
     for (let i = 0; i < num_periods / 2; i++) {
-        browser.menus.update(
-            `reloadmatic-mnu-period-${reload_periods[i * 2]}`,
-            {
-                checked: false,
-                title: reload_periods[i * 2 + 1]
-            }
-        )
+        promises.push(
+            browser.menus.update(
+                `reloadmatic-mnu-period-${reload_periods[i * 2]}`,
+                {
+                    checked: false,
+                    title: reload_periods[i * 2 + 1]
+                }
+            )
+        );
     }
+    return Promise.all(promises);
 }
 
 function formatInterval(total) {
@@ -466,48 +475,44 @@ function formatInterval(total) {
 
 function menuSetActiveTab(tabId) {
     let obj = getTabProps(tabId)
-    disablePeriodMenus()
+    disablePeriodMenus().then(() => {
 
-    // Iterate through available presets to see if our setting
-    // corresponds to one of them or maybe it's a custom interval.
-    let custom = true
-    for (let i = 0; i < num_periods / 2; i++) {
-        if (reload_periods[i * 2] === obj.period) {
-            custom = false
-            break;
+        let promises = [];
+
+        // Iterate through available presets to see if our setting
+        // corresponds to one of them or maybe it's a custom interval.
+        let custom = true
+        for (let i = 0; i < num_periods / 2; i++) {
+            if (reload_periods[i * 2] === obj.period) {
+                custom = false
+                break;
+            }
         }
-    }
-    if (custom) {
-        browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` })
-    } else {
-        browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true })
-    }
 
-    browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember })
-    browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize })
-    browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError })
-    browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart })
-    browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload })
-    browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache })
+        if (custom) {
+            promises.push(browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` }));
+        } else {
+            promises.push(browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true }));
+        }
+
+        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember }));
+        promises.push(browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize }));
+        promises.push(browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError }));
+        promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
+        promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
+        promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
+
+        return Promise.all(promises);
+    });
 }
 
-function refreshMenu(tabId) {
-    if (Number.isInteger(tabId)) {
-        // More efficient code path for known tab id
-        browser.tabs.get(tabId).then((tab) => {
-            if (tab.windowId == CurrentWindowId) {
-                menuSetActiveTab(tab.id)
-            }
-        })
-    } else {
-        // We take this path if we don't know the current tab id
-        browser.tabs.query({ currentWindow: true, active: true }).then((tabs) => {
-            for (let tab of tabs) {
-                CurrentWindowId = tab.windowId
-                menuSetActiveTab(tab.id)
-            }
-        })
-    }
+function refreshMenu() {
+    // We take this path if we don't know the current tab id
+    return browser.tabs.query({ currentWindow: true, active: true }).then((tabs) => {
+        let tab = tabs[0];
+        CurrentWindowId = tab.windowId
+        return menuSetActiveTab(tab.id);
+    });
 }
 
 browser.runtime.onUpdateAvailable.addListener((details) => {
