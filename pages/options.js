@@ -4,6 +4,7 @@ var chkDefOnlyUnsuccessful;
 var chkDefSmartTiming;
 var chkDefStickyReload;
 var chkDefDisableCache;
+var chkPinningSetsRemember;
 
 function storeSettings(evt) {
     let defs = {
@@ -13,29 +14,33 @@ function storeSettings(evt) {
         stickyReload: chkDefStickyReload.checked,
         nocache: chkDefDisableCache.checked
     };
-    browser.storage.local.set({
-        defaults: defs
-    })
-    .then(() => {
-        background.LoadDefaultsAsync();
-    });
+    let settings = {
+        defaults: defs,
+        pinSetsRemember: chkPinningSetsRemember.checked
+    }
+    browser.storage.local.set({ settings: settings })
+        .then(() => {
+            background.LoadSettingsAsync();
+        });
 }
 
 document.addEventListener("DOMContentLoaded", (event) => {
     chkDefRandomize = document.getElementById("defRandomize");
     chkDefOnlyUnsuccessful = document.getElementById("defOnlyUnsuccessful");
-    chkDefSmartTiming =  document.getElementById("defSmartTiming");
+    chkDefSmartTiming = document.getElementById("defSmartTiming");
     chkDefStickyReload = document.getElementById("defStickyReload");
     chkDefDisableCache = document.getElementById("defDisableCache");
+    chkPinningSetsRemember = document.getElementById("chkPinningSetsRemember");
     let inputs = [
         chkDefRandomize,
         chkDefOnlyUnsuccessful,
         chkDefSmartTiming,
         chkDefStickyReload,
-        chkDefDisableCache
+        chkDefDisableCache,
+        chkPinningSetsRemember
     ];
 
-    for(let i=0; i<inputs.length; i++) {
+    for (let i = 0; i < inputs.length; i++) {
         inputs[i].addEventListener('change', storeSettings);
     }
 
@@ -46,11 +51,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
         });
     });
 
-    background.LoadDefaultsAsync().then((defaults) => {
-        chkDefRandomize.checked = defaults.randomize;
-        chkDefOnlyUnsuccessful.checked = defaults.onlyOnError;
-        chkDefSmartTiming.checked = defaults.smart;
-        chkDefStickyReload.checked = defaults.stickyReload;
-        chkDefDisableCache.checked = defaults.nocache;
+    background.LoadSettingsAsync().then((settings) => {
+        chkDefRandomize.checked = settings.defaults.randomize;
+        chkDefOnlyUnsuccessful.checked = settings.defaults.onlyOnError;
+        chkDefSmartTiming.checked = settings.defaults.smart;
+        chkDefStickyReload.checked = settings.defaults.stickyReload;
+        chkDefDisableCache.checked = settings.defaults.nocache;
+        chkPinningSetsRemember.checked = settings.pinSetsRemember;
     });
 });

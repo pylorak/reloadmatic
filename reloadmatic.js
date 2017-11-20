@@ -16,7 +16,8 @@ var urlMemory = new Map();
 // ID of the currently focused window
 var CurrentWindowId = 0
 
-var DefaultProps;
+// Here we store all user settings for the plugin
+var Settings;
 
 function objKey(tabId) {
     return `tab-${tabId}-alarm`;
@@ -49,8 +50,8 @@ function newTabProps(tabId) {
     };
 
     // Apply default user options
-    Object.keys(DefaultProps).forEach(function (key, index) {
-        ret[key] = DefaultProps[key];
+    Object.keys(Settings.defaults).forEach(function (key, index) {
+        ret[key] = Settings.defaults[key];
     });
 
     return ret;
@@ -325,11 +326,13 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         return;
     }
 
+    let obj = getTabProps(tabId)
+
     // Tell content-script what tab it is running in
     sendContentTabId(tabId)
 
+    // Start or stop alarm based on page loading progress
     if ('status' in changeInfo) {
-        let obj = getTabProps(tabId)
         if (changeInfo.status === 'complete') {
             // Start reload timer once page is completely loaded
             restartAlarm(obj)
@@ -337,6 +340,14 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             // Don't autoreload while page is being loaded
             browser.alarms.clear(obj.alarmName)
         }
+    }
+
+    // "Pinning sets Remember" option
+    if (Settings.pinSetsRemember && ('pinned' in changeInfo))
+    {
+        obj.remember = changeInfo.pinned;
+        rememberSet(obj);
+        refreshMenu();
     }
 });
 
@@ -525,26 +536,29 @@ browser.runtime.onUpdateAvailable.addListener((details) => {
     });
 });
 
-function LoadDefaultsAsync() {
+function LoadSettingsAsync() {
     return Promise.resolve()
         .then(() => {
-            return browser.storage.local.get("defaults")
+            return browser.storage.local.get("settings")
         }).then((results) => {
-            if (results && results.defaults) {
-                DefaultProps = results.defaults;
-                return DefaultProps;
+            if (results && results.settings) {
+                Settings = results.settings;
+                return Settings;
             } else {
                 throw null;
             }
         }).catch(() => {
-            DefaultProps = {
-                randomize: false,
-                onlyOnError: false,
-                smart: true,
-                stickyReload: false,
-                nocache: false
+            Settings = {
+                defaults: {
+                    randomize: false,
+                    onlyOnError: false,
+                    smart: true,
+                    stickyReload: false,
+                    nocache: false
+                },
+                pinSetsRemember: true
             };
-            return DefaultProps;
+            return Settings;
         });
 }
 
@@ -553,7 +567,7 @@ function on_addon_load() {
     // This means we need to load our content script at add-on load time
     // manually to all already open tabs. Do that now.
 
-    LoadDefaultsAsync()
+    LoadSettingsAsync()
         .then(() => browser.storage.local.get())
         .then((results) => {
 
