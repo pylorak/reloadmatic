@@ -343,8 +343,7 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 
     // "Pinning sets Remember" option
-    if (Settings.pinSetsRemember && ('pinned' in changeInfo))
-    {
+    if (Settings.pinSetsRemember && ('pinned' in changeInfo)) {
         obj.remember = changeInfo.pinned;
         rememberSet(obj);
         refreshMenu();
@@ -528,10 +527,11 @@ function refreshMenu() {
 }
 
 browser.runtime.onUpdateAvailable.addListener((details) => {
-    browser.storage.local.set({
+    let upgradeInfo = {
         version: CONFIG_VERSION,
-        props: [...state]
-    }).then(() => {
+        state: [...state]
+    };
+    browser.storage.local.set({ upgrade: upgradeInfo }).then(() => {
         browser.runtime.reload();
     });
 });
@@ -564,20 +564,17 @@ function LoadSettingsAsync() {
 }
 
 function on_addon_load() {
-    // Our content-script is only automatically loaded to new pages.
-    // This means we need to load our content script at add-on load time
-    // manually to all already open tabs. Do that now.
 
     LoadSettingsAsync()
-        .then(() => browser.storage.local.get())
+        .then(() => browser.storage.local.get("upgrade"))
         .then((results) => {
 
             let upgrading = false;
 
-            if (results && results.version && results.props) {
-                if (results.version <= CONFIG_VERSION) {
+            if (results && results.upgrade) {
+                if (results.upgrade.version <= CONFIG_VERSION) {
 
-                    let newState = new Map(results.props)
+                    let newState = new Map(results.upgrade.state)
 
                     for (var [key, obj] of newState) {
 
@@ -599,7 +596,7 @@ function on_addon_load() {
         .catch(() => Promise.resolve(false))
         .then((upgrading) => {
             // Remove stuff that we only needed for the upgrade
-            browser.storage.local.remove(["version", "props"])
+            browser.storage.local.remove("upgrade")
 
             browser.storage.local.get("urlMemory")
                 .then((results) => {
@@ -613,6 +610,9 @@ function on_addon_load() {
                     let promises = [];
                     for (let tab of tabs) {
                         promises.push(
+                            // Our content-script is only automatically loaded to new pages.
+                            // This means we need to load our content script at add-on load time
+                            // manually to all already open tabs.
                             browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
                                 sendContentTabId(tab.id)
                             })
