@@ -7,21 +7,14 @@ var chkDefDisableCache;
 var chkPinningSetsRemember;
 
 function storeSettings(evt) {
-    let defs = {
-        randomize: chkDefRandomize.checked,
-        onlyOnError: chkDefOnlyUnsuccessful.checked,
-        smart: chkDefSmartTiming.checked,
-        stickyReload: chkDefStickyReload.checked,
-        nocache: chkDefDisableCache.checked
-    };
-    let settings = {
-        defaults: defs,
-        pinSetsRemember: chkPinningSetsRemember.checked
-    }
-    browser.storage.local.set({ settings: settings })
-        .then(() => {
-            background.LoadSettingsAsync();
-        });
+    let s = background.Settings;
+    s.defaults.randomize = chkDefRandomize.checked;
+    s.defaults.onlyOnError = chkDefOnlyUnsuccessful.checked;
+    s.defaults.smart = chkDefSmartTiming.checked;
+    s.defaults.stickyReload = chkDefStickyReload.checked;
+    s.defaults.nocache = chkDefDisableCache.checked;
+    s.pinSetsRemember = chkPinningSetsRemember.checked;
+    browser.storage.local.set({ settings: background.Settings });
 }
 
 document.addEventListener("DOMContentLoaded", (event) => {

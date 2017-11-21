@@ -7,6 +7,13 @@ var tooltip;
 function submitEvent(ev) {
     ev.preventDefault();
 
+    // Store setting
+    if (document.getElementById("chkPostNeverConfirm").checked)
+    {
+        background.Settings.neverConfirmPost = true;
+        browser.storage.local.set({ settings: background.Settings });
+    }
+
     // Commit
     obj = background.getTabProps(targetTabId);
     obj.postConfirmed = true;

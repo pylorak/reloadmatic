@@ -108,7 +108,7 @@ function setTabPeriod(obj, period) {
 
         // If this page was requested using POST, make sure the user
         // knows the risks and really wants to refresh
-        if ((obj.reqMethod != "GET") && (period != -1) && !obj.postConfirmed) {
+        if ((obj.reqMethod != "GET") && (period != -1) && !obj.postConfirmed && !Settings.neverConfirmPost) {
             let popupURL = browser.extension.getURL("pages/post-confirm.html");
             let createData = {
                 type: "popup",
@@ -556,7 +556,8 @@ function LoadSettingsAsync() {
                     stickyReload: false,
                     nocache: false
                 },
-                pinSetsRemember: true
+                pinSetsRemember: true,
+                neverConfirmPost: false
             };
             return Settings;
         });
