@@ -411,7 +411,7 @@ browser.windows.onFocusChanged.addListener((windowId) => {
     browser.tabs.query({ windowId: CurrentWindowId, active: true }).then((tabs) => {
         if (tabs.length > 0) {
             let tab = tabs[0];
-            freezeReload(tab.id, 5000)
+            freezeReload(tab.id, 3000)
             return refreshMenu(tab.id)
         }
     })
