@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>ReloadMatic F.A.Q.</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/typography.css">
+    <link rel="stylesheet" href="css/tooltip.css">
+</head>
+
+<body>
+
+        <h1>ReloadMatic</h1>
+        <h3>Frequently Asked Questions</h3>
+
+<!-- **************************************************************** -->
+
+<h4>Can you briefly explain what the menu options do?</h4>
+<ul>
+    <li>
+        <b>Remember page</b> - When enabled, settings will be remembered and activated whenever the same webpage is loaded again. Settings are stored per page and are remembered even across browser or computer restarts.
+    </li>
+    <li>
+        <b>Randomize</b> - When enabled, the page will reload at random intervals between 0.5x and 1.5x of the period selected, instead of the exact period.
+    </li>
+    <li>
+        <b>Only if unsuccessful</b> - When enabled, the page will only keep reloading if it cannot be loaded due to a network or server-side error. Hence this is the perfect option for retrying failed loads until they succeed.
+    </li>
+    <li>
+        <b>Smart timing</b> - When enabled, automatic reloading will be delayed on an as-needed basis for a short time to prevent interrupting the user in his actions.
+    </li>
+    <li>
+        <b>Sticky reload</b> - Normally, when a user navigates away from a page, periodic reloading will be disabled for that tab until re-enabled again by the user. This is on purpose. Enabling this option will keep reloading turned on even if a different page is loaded.
+    </li>
+    <li>
+        <b>Disable cache</b> - When enabled, automatic reloads will force a full page reload by skipping the browser's local cache.
+    </li>
+    <li>
+        <b>Reload now</b> - Will instantly reload the current page with caches disabled.
+    </li>
+    <li>
+        <b>Reload all tabs</b> - Will instantly reload all open tabs in all windows.
+    </li>
+</ul>
+
+<!-- **************************************************************** -->
+
+<h4>What browser permissions are required and why?</h4>
+When you install this plugin, your browser will ask for the following permissions.
+<ul>
+    <li>
+        <b>Access your data for all websites</b> - The permission will allow ReloadMatic to retrieve HTTP status codes which is used to tell if the page was loaded successfully. Used for the "Only if unsuccessful" feature. Also needed to capture POST data for resubmission.
+    </li>
+    <li>
+        <b>Access browser tabs</b> - It allows to associate and differentiate settings per tab, for example to keep a different reload period for each of your tabs.
+    </li>
+    <li>
+        <b>Access recently closed tabs</b> - Allows to restore reload- and other settings if you reopen an accidentially closed tab.
+    </li>
+    <li>
+        <b>Access browser activity during navigation</b> - Used to catch navigation events, so that page reloading can be toggled on/off based on user actions.
+    </li>
+    <li>
+        <b>Access browsing history</b> - There are some pages that cannot be reloaded properly without adding new (unwanted) items to your browser history. This permission allows the addon to readjust your history in such cases to keep it tidy and correct.
+    </li>
+</ul>
+
+
+<!-- **************************************************************** -->
+
+<h4>How does the add-on handle my privacy?</h4>
+<p>Privacy is kept in high regard and no information is accessed about the pages you visit, you or your computer, unless technically necessary for the given function that you activated. Furthermore, ReloadMatic does not collect any statistics (not even anonymous) and sends absolutely no information to the developer or other parties, and it never will.</p>
+
+<!-- **************************************************************** -->
+
+<h4>Why does automatic reloading get disabled without my consent?</h4>
+<p>This happens when you load another page in the same tab, for example when you click a link, but in general other actions can also have this effect if they cause the URL to change. If you don't want this behavior, enable the "Sticky reload" option, and then reloading will stay enabled until you disable it explicitly.</p>
+<p>Note that simply switching to or using another tab or window will not disable reloading even without the sticky option.</p>
+<p>The general assumption is that most people only want specific pages on a website to periodically reload, and not every single webpage they visit. Thus it follows that for most people, it makes sense to disable automatic reloading as soon as they leave a page, hence this is the default behavior. This can be changed using the "Sticky reload" option. In the plugin settings, you can also make this option to be on by default, so that you don't have to enable it on every tab if that is what you wish.</p>
+
+<!-- **************************************************************** -->
+
+<h4>How can I change the default options for new tabs?</h4>
+<p>You can change the default options in the add-on settings. The settings can be opened through your browser's add-on management page, or using ReloadMatic's right-click context menu.</p>
+
+<!-- **************************************************************** -->
+
+<h4>Why do some pages reload less often than specified?</h4>
+<p>This can only have two reasons.</p>
+<p>One is that the page takes long to reload. ReloadMatic will start the reload timer when the page finishes loading completely. This ensures that the page is loaded and visible before starting another reload. So if a page takes 2 seconds to reload and you've set a reload interval of 5 seconds, the actual interval will be 7 seconds (2+5). Most times this effect will be hardly noticable, but can be obvious if the reload interval is short and the page takes relatively long to load for whatever reason (complex page, slow internet etc.).</p>
+<p>Another reason is that "Smart timing" is enabled. Smart timing avoids reloading a page while you are interacting with it, so you don't become unable to click on links or make simple form entries. This means though that if ReloadMatic thinks you are interacting with a specific tab, it will delay its reload. Moving the mouse or typing on the keyboard while the page is in focus count as such actions, among some others. So if you want to make sure the page is reloaded, you have three options: 1) either disable smart timing, 2) switch to another tab or window, or 3) stop moving the mouse and wait for a few seconds. Of course, you are allowed to use your computer in other tabs or windows: Smart timing will only affect reloading in the currently active tab of the currently active window.</p>
+
+<!-- **************************************************************** -->
+
+<h4>Can you please implement feature X?</h4>
+<p>Please open a ticket on <a href="https://github.com/pylorak/reloadmatic/issues" target="_blank" >GitHub</a> and we can discuss your wish there. Please don't use reviews for feature requests, as there is little-to-no possibility for discussions in the reviews. Also, reviews are meant for letting other people know what you think of the add-on, and not for communicating with the developer. For the same reasons, please use GitHub for reporting bugs.</p>
+
+<!-- **************************************************************** -->
+
+<h4>How does the browser's standard reload button differ from the add-on's "Reload now" action?</h4>
+<p>ReloadMatic's "Reload now" action will bypass local caches and will force a full reload. It will take somewhat longer but will ensure that you see the latest contents of the page. The browser's standard reload button will take shortcuts, though it is only fair to note that it works perfectly well in 99% of all cases and will only fail on misconfigured websites.</p>
+
+
+<!-- **************************************************************** -->
+
+<h4>Why do I see a warning about some "POST"-thing? It sounds dangerous.</h4>
+<p>A detailed explanation would be too lengthy, but suffice to say that web pages can be requested using multiple methods. Over many years, conventions have been developed when to use which, but really it is technically possible to use each of them for almost everything.</p>
+<p>When you see the above warning, it means the page was requested using a method that usually indicates some side-effects or making permanent changes initiated by you. For example, submitting a specific forum post, or sending a payment to somebody. Of course you don't want such actions to be repeated many times, so ReloadMatic warns you.</p>
+<p>It is impossible to tell for your computer if reloading such a webpage will really cause problems. Most often the website's developer was simply sloppy and used the wrong mechanism when developing the website. Also, professional sites have safety precautions such that risky actions cannot be repeated by a misplaced reload. Still, ReloadMatic cannot possibly know that, and even most users cannot tell unless they have a deep-ish understanding of what is happening in the background (or by experience). So you get a warning, and you can decide to accept the risks or not. You also get the option of never showing the warning again if you feel really confident.</p>
+<p>Note that choosing the option never to see the warning again is somewhat reckless, because due to error or forgetfulness, coupled with other ReloadMatic features (for example "Sticky reload"), it can cause such "potentially dangerious" pages to automatically reload even when you didn't intend to.</p>
+
+</body>
+
+</html>

@@ -204,6 +204,25 @@ function clone(obj) {
 browser.menus.onClicked.addListener(function (info, tab) {
     //    browser.menus.update("reloadmatic-mnu-root", { title: `Tab ID: ${tab.id}` })
 
+    if (info.menuItemId === 'reloadmatic-mnu-settings') {
+        browser.runtime.openOptionsPage();
+    } else if (info.menuItemId === 'reloadmatic-mnu-faq') {
+        browser.tabs.create({
+            active: true,
+            url: browser.extension.getURL("pages/faq.html")
+        });
+    } else if (info.menuItemId === 'reloadmatic-mnu-amo') {
+        browser.tabs.create({
+            active: true,
+            url: "https://addons.mozilla.org/en-US/firefox/addon/reloadmatic/"
+        });
+    } else if (info.menuItemId === 'reloadmatic-mnu-support') {
+        browser.tabs.create({
+            active: true,
+            url: "https://github.com/pylorak/reloadmatic/issues"
+        });
+    }
+
     if (tab.id == browser.tabs.TAB_ID_NONE) {
         return
     }

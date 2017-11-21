@@ -34,6 +34,11 @@ browser.menus.create({
     parentId: "reloadmatic-mnu-root"
 });
 
+/*********************************/
+/*           OPTIONS             */
+/*********************************/
+
+
 browser.menus.create({
     id: "reloadmatic-mnu-remember",
     title: "Remember page",
@@ -88,8 +93,64 @@ browser.menus.create({
     parentId: "reloadmatic-mnu-root"
 });
 
+/*********************************/
+/*           ALL TABS            */
+/*********************************/
+
+browser.menus.create({
+    id: "reloadmatic-mnu-alltabs",
+    title: "All tabs",
+    parentId: "reloadmatic-mnu-root"
+});
+
+browser.menus.create({
+    id: "reloadmatic-mnu-enble-all",
+    title: "Set to all",
+    parentId: "reloadmatic-mnu-alltabs"
+});
+
+browser.menus.create({
+    id: "reloadmatic-mnu-disable-all",
+    title: "Disable on all",
+    parentId: "reloadmatic-mnu-alltabs"
+});
+
 browser.menus.create({
     id: "reloadmatic-mnu-reload-all",
-    title: "Reload all tabs",
+    title: "Reload all now",
+    parentId: "reloadmatic-mnu-alltabs"
+});
+
+/*********************************/
+/*             ABOUT             */
+/*********************************/
+
+browser.menus.create({
+    id: "reloadmatic-mnu-about",
+    title: "About",
     parentId: "reloadmatic-mnu-root"
+});
+
+browser.menus.create({
+    id: "reloadmatic-mnu-settings",
+    title: "Settings",
+    parentId: "reloadmatic-mnu-about"
+});
+
+browser.menus.create({
+    id: "reloadmatic-mnu-faq",
+    title: "F.A.Q.",
+    parentId: "reloadmatic-mnu-about"
+});
+
+browser.menus.create({
+    id: "reloadmatic-mnu-amo",
+    title: "AMO Site",
+    parentId: "reloadmatic-mnu-about"
+});
+
+browser.menus.create({
+    id: "reloadmatic-mnu-support",
+    title: "Issues and requests",
+    parentId: "reloadmatic-mnu-about"
 });
