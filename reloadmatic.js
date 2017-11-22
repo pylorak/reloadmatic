@@ -200,8 +200,7 @@ function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-function reloadTab(obj)
-{
+function reloadTab(obj) {
     if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
         obj.keepRefreshing = true;
         let msg = {
@@ -280,9 +279,26 @@ browser.menus.onClicked.addListener(function (info, tab) {
         rememberSet(obj);
         restartAlarm(obj)
     } else if (info.menuItemId === 'reloadmatic-mnu-reload') {
-        browser.tabs.reload(tab.id, { bypassCache: true })
+        reloadTab(obj);
     } else if (info.menuItemId === 'reloadmatic-mnu-reload-all') {
         reloadAllTabs();
+    } else if (info.menuItemId === 'reloadmatic-mnu-enable-all') {
+        browser.tabs.query({}).then((tabs) => {
+            for (let tab of tabs) {
+                let other = getTabProps(tab.id);
+                let oldOther = clone(other);
+                migratePropObj(other, obj);
+                other.postConfirmed = oldOther.postConfirmed;
+                setTabPeriod(other, other.period);
+            }
+        });
+    } else if (info.menuItemId === 'reloadmatic-mnu-disable-all') {
+        browser.tabs.query({}).then((tabs) => {
+            for (let tab of tabs) {
+                let obj = getTabProps(tab.id);
+                setTabPeriod(obj, -1);
+            }
+        });
     }
 
     if (session57Available) {

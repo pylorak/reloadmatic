@@ -104,7 +104,7 @@ browser.menus.create({
 });
 
 browser.menus.create({
-    id: "reloadmatic-mnu-enble-all",
+    id: "reloadmatic-mnu-enable-all",
     title: "Set to all",
     parentId: "reloadmatic-mnu-alltabs"
 });
