@@ -200,6 +200,32 @@ function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
+function reloadTab(obj)
+{
+    if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
+        obj.keepRefreshing = true;
+        let msg = {
+            event: "reload",
+            postData: obj.formData
+        };
+        return promises.push(browser.tabs.sendMessage(obj.tabId, msg));
+    } else {
+        return promises.push(browser.tabs.reload(tab.id, { bypassCache: true }));
+    }
+}
+
+function reloadAllTabs() {
+    return browser.tabs.query({}).then((tabs) => {
+        let promises = [];
+        for (let tab of tabs) {
+            let obj = getTabProps(tab.id);
+            promises.push(reloadTab(obj));
+        }
+
+        return Promise.all(promises);
+    });
+}
+
 // Handle clicking on menu entries
 browser.menus.onClicked.addListener(function (info, tab) {
     //    browser.menus.update("reloadmatic-mnu-root", { title: `Tab ID: ${tab.id}` })
@@ -256,11 +282,7 @@ browser.menus.onClicked.addListener(function (info, tab) {
     } else if (info.menuItemId === 'reloadmatic-mnu-reload') {
         browser.tabs.reload(tab.id, { bypassCache: true })
     } else if (info.menuItemId === 'reloadmatic-mnu-reload-all') {
-        browser.tabs.query({}).then((tabs) => {
-            for (let tab of tabs) {
-                browser.tabs.reload(tab.id, { bypassCache: true })
-            }
-        })
+        reloadAllTabs();
     }
 
     if (session57Available) {
