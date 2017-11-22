@@ -295,6 +295,14 @@ browser.webRequest.onBeforeRequest.addListener((details) => {
     } else {
         obj.formData = null;
     }
+
+    if ((obj.reqMethod != "GET") && !obj.postConfirmed && !Settings.neverConfirmPost) {
+        // We just issued a POST-request,
+        // and the user didn't yet confirm this.
+        // So disable autoreloads.
+        obj.period = -1
+        applyTabProps(obj)
+    }
 },
     { urls: ["<all_urls>"], types: ["main_frame"] },
     ["requestBody"]
