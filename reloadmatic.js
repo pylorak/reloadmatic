@@ -148,6 +148,11 @@ function rememberSet(obj) {
     // We need the tab's URL
     return browser.tabs.get(obj.tabId).then((tab) => {
 
+        // Don't store anything on the computer in incognito mode
+        if (tab.incognito) {
+            return;
+        }
+
         // We use only portions of the URL to generalize it to a certain page
         // without protocol or query parameters
         let url = parseUri(tab.url);
@@ -550,36 +555,42 @@ function formatInterval(total) {
 }
 
 function menuSetActiveTab(tabId) {
-    let obj = getTabProps(tabId)
-    disablePeriodMenus().then(() => {
+    let obj = getTabProps(tabId);
+    disablePeriodMenus()
+        .then(() => browser.tabs.get(tabId))
+        .then((tab) => {
 
-        let promises = [];
+            let promises = [];
 
-        // Iterate through available presets to see if our setting
-        // corresponds to one of them or maybe it's a custom interval.
-        let custom = true
-        for (let i = 0; i < num_periods / 2; i++) {
-            if (reload_periods[i * 2] === obj.period) {
-                custom = false
-                break;
+            // Iterate through available presets to see if our setting
+            // corresponds to one of them or maybe it's a custom interval.
+            let custom = true
+            for (let i = 0; i < num_periods / 2; i++) {
+                if (reload_periods[i * 2] === obj.period) {
+                    custom = false
+                    break;
+                }
             }
-        }
 
-        if (custom) {
-            promises.push(browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` }));
-        } else {
-            promises.push(browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true }));
-        }
+            if (custom) {
+                promises.push(browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` }));
+            } else {
+                promises.push(browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true }));
+            }
 
-        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember }));
-        promises.push(browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize }));
-        promises.push(browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError }));
-        promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
-        promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
-        promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
+            if (tab.incognito) {
+                promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: false, enabled: false }));
+            } else {
+                promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember, enabled: true }));
+            }
+            promises.push(browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize }));
+            promises.push(browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError }));
+            promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
+            promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
+            promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
 
-        return Promise.all(promises);
-    });
+            return Promise.all(promises);
+        });
 }
 
 function refreshMenu() {
