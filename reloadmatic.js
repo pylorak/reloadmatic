@@ -207,9 +207,9 @@ function reloadTab(obj) {
             event: "reload",
             postData: obj.formData
         };
-        return promises.push(browser.tabs.sendMessage(obj.tabId, msg));
+        return browser.tabs.sendMessage(obj.tabId, msg);
     } else {
-        return promises.push(browser.tabs.reload(tab.id, { bypassCache: true }));
+        return browser.tabs.reload(obj.tabId, { bypassCache: true });
     }
 }
 
