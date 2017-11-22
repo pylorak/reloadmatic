@@ -89,6 +89,11 @@ When you install this plugin, your browser will ask for the following permission
 
 <!-- **************************************************************** -->
 
+<h4>Why is "Remember page" disabled and grayed out?</h4>
+<p>You are running the tab in incognito mode. Since ReloadMatic's remember function by definition requires information about your browsing history to be stored on your computer, and the goal of incognito mode is to prevent exactly that, ReloadMatic disables this funtion in incognito mode to prevent potentially leaking information about the pages you visited. Exit incognito mode and the function will be available.</p>
+
+<!-- **************************************************************** -->
+
 <h4>Why do some pages reload less often than specified?</h4>
 <p>This can only have two reasons.</p>
 <p>One is that the page takes long to reload. ReloadMatic will start the reload timer when the page finishes loading completely. This ensures that the page is loaded and visible before starting another reload. So if a page takes 2 seconds to reload and you've set a reload interval of 5 seconds, the actual interval will be 7 seconds (2+5). Most times this effect will be hardly noticable, but can be obvious if the reload interval is short and the page takes relatively long to load for whatever reason (complex page, slow internet etc.).</p>
@@ -102,8 +107,7 @@ When you install this plugin, your browser will ask for the following permission
 <!-- **************************************************************** -->
 
 <h4>How does the browser's standard reload button differ from the add-on's "Reload now" action?</h4>
-<p>ReloadMatic's "Reload now" action will bypass local caches and will force a full reload. It will take somewhat longer but will ensure that you see the latest contents of the page. The browser's standard reload button will take shortcuts, though it is only fair to note that it works perfectly well in 99% of all cases and will only fail on misconfigured websites.</p>
-
+<p>ReloadMatic's "Reload now" will not ask about resending POST data if you've already confirmed it for the current page. Also, "Reload now" will bypass local caches and will force a full reload. It will take somewhat longer but will ensure that you see the latest contents of the page.</p>
 
 <!-- **************************************************************** -->
 
