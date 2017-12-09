@@ -1,6 +1,6 @@
 var tabId = null
 
-function toBackground(event, param1 = None, param2 = None) {
+function toBackground(event, param1 = undefined, param2 = undefined) {
     if (tabId !== null) {   // don't send anything unless we know who we are
         browser.runtime.sendMessage({
             event: event,
