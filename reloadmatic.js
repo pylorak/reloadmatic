@@ -46,7 +46,11 @@ function newTabProps(tabId) {
         freezeUntil: 0,             // time until we are not allowed to reload
         tabId: tabId,               // id of the tab we belong to
         reqMethod: "GET",           // HTTP method the page was retrieved with
-        postConfirmed: false        // true if user wants to resend POST data
+        postConfirmed: false,       // true if user wants to resend POST data
+        scrollX: undefined,         // Horizontal scroll position of page
+        scrollY: undefined,         // Vertical scroll position of page
+        url: "",                    // Current or currently loading URL of tab,
+        reloadByAddon: false        // true if the current reload was initiated by us
     };
 
     // Apply default user options
@@ -206,6 +210,8 @@ function clone(obj) {
 }
 
 function reloadTab(obj) {
+    obj.reloadByAddon = true;
+
     if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
         obj.keepRefreshing = true;
         let msg = {
@@ -404,6 +410,18 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // Start or stop alarm based on page loading progress
     if ('status' in changeInfo) {
         if (changeInfo.status === 'complete') {
+            // Scroll page to same position as before reload
+            if (obj.reloadByAddon && (obj.scrollX != undefined)) {
+                let msg = {
+                    event: "scroll",
+                    scrollX: obj.scrollX,
+                    scrollY: obj.scrollY
+                }
+                browser.tabs.sendMessage(tabId, msg)
+            }
+
+            obj.reloadByAddon = false;
+
             // Start reload timer once page is completely loaded
             restartAlarm(obj)
         } else {
@@ -440,6 +458,13 @@ browser.webNavigation.onCommitted.addListener((details) => {
         } else {
             rememberGet(obj);
         }
+
+        // If the URL changed, forget scroll position in tab
+        if (obj.url != details.url) {
+            obj.scrollX = undefined;
+            obj.scrollY = undefined;
+            obj.url = details.url;
+        }
     }
 });
 
@@ -463,6 +488,11 @@ browser.runtime.onMessage.addListener((message) => {
         freezeReload(message.tabId, 3000)
     } else if (message.event == "set-tab-interval") {
         setTabPeriod(getTabProps(message.tabId), message.period);
+    } else if (message.event == "scroll") {
+        // A page is telling us its scroll position
+        let obj = getTabProps(message.tabId)
+        obj.scrollX = message.arg1;
+        obj.scrollY = message.arg2;
     }
 })
 

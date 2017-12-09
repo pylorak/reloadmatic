@@ -1,10 +1,12 @@
 var tabId = null
 
-function toBackground(event) {
+function toBackground(event, param1 = None, param2 = None) {
     if (tabId !== null) {   // don't send anything unless we know who we are
         browser.runtime.sendMessage({
             event: event,
-            tabId: tabId
+            tabId: tabId,
+            arg1: param1,
+            arg2: param2,
         })
     }
 }
@@ -39,8 +41,9 @@ browser.runtime.onMessage.addListener((message) => {
     } else if (message.event == "reload") {
         let loc = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.search + window.location.hash;
         doPostRequest(loc, message.postData)
-    }
-})
+    } else if (message.event == "scroll") {
+        window.scrollTo(message.scrollX, message.scrollY);
+    }})
 
 window.addEventListener("mousedown", evt => {
     if (evt.button === 2) {
@@ -65,3 +68,31 @@ window.addEventListener("mousemove", evt => {
 window.addEventListener("scroll", evt => {
     toBackground("activity")
 }, true)
+
+
+// ---------------------------------
+//     Scroll events
+// ---------------------------------
+
+var last_known_scrollX_position = 0;
+var last_known_scrollY_position = 0;
+var scrollReportingBlocked = false
+
+window.addEventListener("scroll", evt => {
+    last_known_scrollX_position = window.scrollX;
+    last_known_scrollY_position = window.scrollY;
+
+    if (!scrollReportingBlocked) {
+
+        window.requestAnimationFrame(function () {
+            toBackground(
+                "scroll",
+                last_known_scrollX_position,
+                last_known_scrollY_position
+            );
+            scrollReportingBlocked = false;
+        });
+
+        scrollReportingBlocked = true;
+    }
+});
