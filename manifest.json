@@ -26,7 +26,8 @@
         "webRequest",
         "webNavigation",
         "history",
-        "storage"
+        "storage",
+        "notifications"
     ],
     "options_ui": {
         "page": "pages/options.html",

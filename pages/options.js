@@ -40,7 +40,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
     document.getElementById("btnClearRememberedPages").addEventListener('click', () => {
         browser.storage.local.remove(["urlMemory"]).then(() => {
             background.urlMemory = new Map();
-            alert("Remembered pages have been cleared.")
+            browser.notifications.create({
+                "type": "basic",
+                "iconUrl": browser.extension.getURL("icon.svg"),
+                "title": "ReloadMatic",
+                "message": "Remembered pages have been cleared."
+            });
         });
     });
 
