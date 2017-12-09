@@ -213,12 +213,28 @@ function reloadTab(obj) {
     obj.reloadByAddon = true;
 
     if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
-        obj.keepRefreshing = true;
-        let msg = {
-            event: "reload",
-            postData: obj.formData
-        };
-        return browser.tabs.sendMessage(obj.tabId, msg);
+        // Delete old URL from history because our refresh
+        // will create a new history entry.
+        return browser.history.search({ text: obj.url, maxResults: 1 })
+            .then((items) => {
+                if (items.length > 0) {
+                    let visitTime = items[0].lastVisitTime
+                    return browser.history.deleteRange({
+                        startTime: visitTime-1,
+                        endTime: visitTime+1
+                    });
+                } else {
+                    return true;
+                }
+            })
+            .then(() => {
+                obj.keepRefreshing = true;
+                let msg = {
+                    event: "reload",
+                    postData: obj.formData
+                };
+                return browser.tabs.sendMessage(obj.tabId, msg);
+            });
     } else {
         return browser.tabs.reload(obj.tabId, { bypassCache: true });
     }
@@ -358,33 +374,18 @@ browser.webRequest.onBeforeRequest.addListener((details) => {
 );
 
 browser.alarms.onAlarm.addListener((alarm) => {
-    let obj = state.get(alarm.name)
+    let obj = state.get(alarm.name);
 
     if (!obj.onlyOnError || obj.loadError) {    // handling "Only if unsuccessful" feature
 
         // Delay firing alarm until time is freezeUntil,
         // fire otherwise.
-        let now = Date.now()
+        let now = Date.now();
         if (obj.smart && (obj.freezeUntil > now)) {
-            let deltaInSeconds = (obj.freezeUntil - now) / 1000
+            let deltaInSeconds = (obj.freezeUntil - now) / 1000;
             browser.alarms.create(obj.alarmName, { delayInMinutes: deltaInSeconds * TIME_FACTOR });
         } else {
-            if (obj.reqMethod === "GET") {
-                browser.tabs.reload(obj.tabId, { bypassCache: obj.nocache })
-            } else {
-                // Delete old URL from history because our refresh
-                // will create a new history entry.
-                browser.tabs.get(obj.tabId)
-                    .then((tab) => browser.history.deleteUrl({ url: tab.url }))
-                    .then(() => {
-                        obj.keepRefreshing = true;
-                        let msg = {
-                            event: "reload",
-                            postData: obj.formData
-                        };
-                        return browser.tabs.sendMessage(obj.tabId, msg);
-                    });
-            }   // if GET
+            reloadTab(obj);
         }   // smart
     }   // if onlyOnError ...
 });
