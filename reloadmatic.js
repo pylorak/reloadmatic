@@ -697,9 +697,15 @@ function on_addon_load() {
                         let obj = getTabProps(tab.id);
                         if (!upgrading) {
                             // Already loaded tabs might be using POST *sigh*
-                            // We'll just assume they do to prevent the browser
-                            // for asking for confirmation.
-                            obj.reqMethod = "POST";
+                            // We can't just use POST in this case
+                            // because if the page is using GET, POSTing might
+                            // be completely disallowed. So we'll fall back to
+                            // browser reload, but say that the user has
+                            // already confirmed POST. This way the browser
+                            // might show a popup, but ReloadMatic will then
+                            // see it was a POST, and at least won't ask a
+                            // second time by itself.
+                            obj.reqMethod = "GET";
                             obj.postConfirmed = true;
                         }
                         promises.push(rememberGet(obj));
