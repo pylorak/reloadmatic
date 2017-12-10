@@ -241,7 +241,7 @@ function reloadTab(obj) {
 }
 
 function reloadAllTabs() {
-    return browser.tabs.query({}).then((tabs) => {
+    return browser.tabs.query({windowId: CurrentWindowId}).then((tabs) => {
         let promises = [];
         for (let tab of tabs) {
             let obj = getTabProps(tab.id);
