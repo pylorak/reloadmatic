@@ -209,7 +209,7 @@ function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-function reloadTab(obj) {
+function reloadTab(obj, forceNocache = false) {
     obj.reloadByAddon = true;
 
     if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
@@ -236,7 +236,7 @@ function reloadTab(obj) {
                 return browser.tabs.sendMessage(obj.tabId, msg);
             });
     } else {
-        return browser.tabs.reload(obj.tabId, { bypassCache: true });
+        return browser.tabs.reload(obj.tabId, { bypassCache: forceNocache || obj.nocache });
     }
 }
 
@@ -306,7 +306,7 @@ browser.menus.onClicked.addListener(function (info, tab) {
         rememberSet(obj);
         restartAlarm(obj)
     } else if (info.menuItemId === 'reloadmatic-mnu-reload') {
-        reloadTab(obj);
+        reloadTab(obj, true);
     } else if (info.menuItemId === 'reloadmatic-mnu-reload-all') {
         reloadAllTabs();
     } else if (info.menuItemId === 'reloadmatic-mnu-enable-all') {
