@@ -488,7 +488,7 @@ function freezeReload(tabId, duration) {
 browser.runtime.onMessage.addListener((message) => {
     if (message.event == "activity") {
         // If there is some activity in the tab, delay a potential pending reload
-        freezeReload(message.tabId, 3000)
+        freezeReload(message.tabId, 5000)
     } else if (message.event == "set-tab-interval") {
         setTabPeriod(getTabProps(message.tabId), message.period);
     } else if (message.event == "scroll") {
