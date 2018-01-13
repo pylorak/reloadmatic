@@ -1,4 +1,5 @@
-var tabId = null
+var tabId = null        // our current tabId
+var bRefreshing = null  // true if a reload timer is active on this page
 
 function toBackground(event, param1 = undefined, param2 = undefined) {
     if (tabId !== null) {   // don't send anything unless we know who we are
@@ -41,6 +42,10 @@ browser.runtime.onMessage.addListener((message) => {
     } else if (message.event == "reload") {
         let loc = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.search + window.location.hash;
         doPostRequest(loc, message.postData)
+    } else if (message.event == "timer-enabled") {
+        setTimerBadge(true);
+    } else if (message.event == "timer-disabled") {
+        setTimerBadge(false);
     } else if (message.event == "scroll") {
         window.scrollTo(message.scrollX, message.scrollY);
     }})
@@ -95,4 +100,39 @@ window.addEventListener("scroll", evt => {
 
         scrollReportingBlocked = true;
     }
+});
+
+
+// ---------------------------------
+//     Timer badge handling
+// ---------------------------------
+
+function setTimerBadge(bEnable) {
+
+    const TIMER_BADGE = "↻ ";
+
+    bRefreshing = bEnable;
+
+    let noBadgeTitle = document.title.replace(TIMER_BADGE, '');
+    let newTitle = null;
+    if (bEnable) {
+        newTitle = TIMER_BADGE + noBadgeTitle;
+    } else {
+        newTitle = noBadgeTitle;
+    }
+
+    if (document.title != newTitle) {
+        document.title = newTitle;
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function(event) {
+    // the observer instance watches for chages in the <title element>
+    var observer = new MutationObserver(function(mutations) {
+        setTimerBadge(bRefreshing);
+    });
+
+    var obsConfig = { subtree: true, characterData: true, childList: true };
+    var obsTarget = document.querySelector("head > title");
+    observer.observe(obsTarget, obsConfig);
 });

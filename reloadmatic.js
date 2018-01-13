@@ -84,7 +84,8 @@ function restartAlarm(obj) {
     browser.alarms.clear(obj.alarmName)
     if (obj.period < 0) {
         obj.postConfirmed = false;
-        return;
+        browser.tabs.sendMessage(obj.tabId, {event: "timer-disabled"});
+        return
     }
 
     // Create new alarm
@@ -95,6 +96,7 @@ function restartAlarm(obj) {
         period = Math.random() * (max - min + 1) + min
     }
     browser.alarms.create(obj.alarmName, { delayInMinutes: period * TIME_FACTOR });
+    browser.tabs.sendMessage(obj.tabId, {event: "timer-enabled"});
 }
 
 function applyTabProps(obj) {
