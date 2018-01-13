@@ -43,9 +43,9 @@ browser.runtime.onMessage.addListener((message) => {
         let loc = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.search + window.location.hash;
         doPostRequest(loc, message.postData)
     } else if (message.event == "timer-enabled") {
-        setTimerBadge(true);
+        setTimerBadge(true, false);
     } else if (message.event == "timer-disabled") {
-        setTimerBadge(false);
+        setTimerBadge(false, false);
     } else if (message.event == "scroll") {
         window.scrollTo(message.scrollX, message.scrollY);
     }})
@@ -107,7 +107,7 @@ window.addEventListener("scroll", evt => {
 //     Timer badge handling
 // ---------------------------------
 
-function setTimerBadge(bEnable) {
+function setTimerBadge(bEnable, bThrottle) {
 
     const TIMER_BADGE = "↻ ";
 
@@ -122,14 +122,26 @@ function setTimerBadge(bEnable) {
     }
 
     if (document.title != newTitle) {
-        document.title = newTitle;
+        // Note to other addon authors:
+        // If an addon other than ReloadMatic also tries to alter the title,
+        // the client can get into an infinite loop and beside eating up
+        // a lot of CPU, this can also make the browser unresponsive.
+        // To prevent this, please set the title using a small delay
+        // whenever it is changing not as a direct result of a user action.
+        // The loop and possible graphical glitches will still be there,
+        // but at least the CPU-use will be kept within limits.
+        if (!bThrottle) {
+            document.title = newTitle;
+        } else {
+            setTimeout(function(){ document.title = newTitle; }, 100);
+        }
     }
 }
 
 document.addEventListener("DOMContentLoaded", function(event) {
     // the observer instance watches for chages in the <title element>
     var observer = new MutationObserver(function(mutations) {
-        setTimerBadge(bRefreshing);
+        setTimerBadge(bRefreshing, true);
     });
 
     var obsConfig = { subtree: true, characterData: true, childList: true };
