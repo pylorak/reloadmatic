@@ -487,8 +487,17 @@ function freezeReload(tabId, duration) {
 
 browser.runtime.onMessage.addListener((message) => {
     if (message.event == "activity") {
-        // If there is some activity in the tab, delay a potential pending reload
-        freezeReload(message.tabId, 5000)
+        // Delay a pending reload if there is activity
+        freezeReload(message.tabId, Settings.smartTiming.delaySecs*1000)
+    } else if (message.event == "typing-activity") {
+        // Delay a pending reload if there is activity, or cancel timer
+        // (based on settings)
+        if (Settings.smartTiming.typeReaction == "radSmartTimingTextDelay") {
+            freezeReload(message.tabId, Settings.smartTiming.delaySecs*1000)
+        } else {
+            let obj = getTabProps(message.tabId)
+            setTabPeriod(obj, -1);
+        }
     } else if (message.event == "set-tab-interval") {
         setTabPeriod(getTabProps(message.tabId), message.period);
     } else if (message.event == "scroll") {
@@ -501,7 +510,7 @@ browser.runtime.onMessage.addListener((message) => {
 
 browser.tabs.onActivated.addListener((info) => {
     // Delay reload on activity
-    freezeReload(info.tabId, 5000)
+    freezeReload(info.tabId, Settings.smartTiming.delaySecs*1000)
 
     // Update menu for newly activated tab
     refreshMenu(info.tabId)
@@ -513,7 +522,7 @@ browser.windows.onFocusChanged.addListener((windowId) => {
     browser.tabs.query({ windowId: CurrentWindowId, active: true }).then((tabs) => {
         if (tabs.length > 0) {
             let tab = tabs[0];
-            freezeReload(tab.id, 3000)
+            freezeReload(tab.id, Settings.smartTiming.delaySecs*1000)
             return refreshMenu(tab.id)
         }
     })
@@ -645,6 +654,24 @@ browser.runtime.onUpdateAvailable.addListener((details) => {
     });
 });
 
+function GetDefaultSettings() {
+    return {
+        defaults: {
+            randomize: false,
+            onlyOnError: false,
+            smart: true,
+            stickyReload: false,
+            nocache: false
+        },
+        smartTiming: {
+            delaySecs: 5,
+            typeReaction: "radSmartTimingTextDisable"
+        },
+        pinSetsRemember: true,
+        neverConfirmPost: false
+    };
+}
+
 function LoadSettingsAsync() {
     return Promise.resolve()
         .then(() => {
@@ -657,17 +684,20 @@ function LoadSettingsAsync() {
                 throw null;
             }
         }).catch(() => {
-            Settings = {
-                defaults: {
-                    randomize: false,
-                    onlyOnError: false,
-                    smart: true,
-                    stickyReload: false,
-                    nocache: false
-                },
-                pinSetsRemember: true,
-                neverConfirmPost: false
-            };
+            return GetDefaultSettings();
+        }).then((settings) => {
+            // If saved settings has missing keys (for example we upgraded
+            // and new addon version supports more options), we migrate
+            // old settings into the new settings structure here.
+            let tmp = GetDefaultSettings();
+            Object.keys(tmp).forEach(function (key, index) {
+                if (settings.hasOwnProperty(key)) {
+                    tmp[key] = settings[key];
+                }
+            });
+
+            // Done
+            Settings = tmp;
             return Settings;
         });
 }

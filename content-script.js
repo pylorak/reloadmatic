@@ -62,7 +62,26 @@ window.addEventListener("keydown", evt => {
     if (evt.shiftKey && evt.key === "F10" || evt.key === "ContextMenu") {
         toBackground("contextMenu")
     } else {
-        toBackground("activity")
+
+        // Determine if the user was typing into a text field
+        let bTextInput = false;
+        const textTypes = [
+            "text",
+            "textarea",
+            "search",
+            "email",
+            "password"
+        ];
+        try {
+            bTextInput = textTypes.includes(evt.target.type);
+        } catch (ex) { }
+
+        // Let the background script know about the user activity
+        if (bTextInput) {
+            toBackground("typing-activity")
+        } else {
+            toBackground("activity")
+        }
     }
 }, true)
 

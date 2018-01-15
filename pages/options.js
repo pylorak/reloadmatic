@@ -5,6 +5,18 @@ var chkDefSmartTiming;
 var chkDefStickyReload;
 var chkDefDisableCache;
 var chkPinningSetsRemember;
+var txtSmartTimingActivityDelay;
+var radSmartTimingTextDisable;
+var radSmartTimingTextDelay;
+
+function isEmpty(str) {
+    return (!str || (0 === str.length));
+}
+
+function isInt(str) {
+    let n = Number(str);
+    return !isEmpty(str) && !isNaN(str) && (Math.floor(n) == n);
+}
 
 function storeSettings(evt) {
     let s = background.Settings;
@@ -14,6 +26,13 @@ function storeSettings(evt) {
     s.defaults.stickyReload = chkDefStickyReload.checked;
     s.defaults.nocache = chkDefDisableCache.checked;
     s.pinSetsRemember = chkPinningSetsRemember.checked;
+    s.smartTiming.typeReaction = document.getElementById('SmartTimingTypeReaction').elements['SmartTimingTypeReaction'].value;
+
+    // Only save input if valid
+    if (isInt(txtSmartTimingActivityDelay.value)) {
+        s.smartTiming.delaySecs = Number(txtSmartTimingActivityDelay.value);
+    }
+
     browser.storage.local.set({ settings: background.Settings });
 }
 
@@ -24,17 +43,25 @@ document.addEventListener("DOMContentLoaded", (event) => {
     chkDefStickyReload = document.getElementById("defStickyReload");
     chkDefDisableCache = document.getElementById("defDisableCache");
     chkPinningSetsRemember = document.getElementById("chkPinningSetsRemember");
+    radSmartTimingTextDisable = document.getElementById('radSmartTimingTextDisable');
+    radSmartTimingTextDelay = document.getElementById('radSmartTimingTextDelay');
+    txtSmartTimingActivityDelay = document.getElementById("txtSmartTimingActivityDelay");
+
+    // Connect input events to all input elements
+    // TODO: use selector instead of array
     let inputs = [
         chkDefRandomize,
         chkDefOnlyUnsuccessful,
         chkDefSmartTiming,
         chkDefStickyReload,
         chkDefDisableCache,
-        chkPinningSetsRemember
+        chkPinningSetsRemember,
+        radSmartTimingTextDelay,
+        radSmartTimingTextDisable,
+        txtSmartTimingActivityDelay
     ];
-
     for (let i = 0; i < inputs.length; i++) {
-        inputs[i].addEventListener('change', storeSettings);
+        inputs[i].addEventListener('input', storeSettings);
     }
 
     document.getElementById("btnClearRememberedPages").addEventListener('click', () => {
@@ -56,5 +83,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
         chkDefStickyReload.checked = settings.defaults.stickyReload;
         chkDefDisableCache.checked = settings.defaults.nocache;
         chkPinningSetsRemember.checked = settings.pinSetsRemember;
+        txtSmartTimingActivityDelay.value = settings.smartTiming.delaySecs;
+        document.getElementById(settings.smartTiming.typeReaction).checked = true;
     });
 });

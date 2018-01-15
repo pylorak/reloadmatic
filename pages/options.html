@@ -20,6 +20,19 @@
         <label><input type="checkbox" id="defDisableCache"/>Disable cache</label><br/>
     </form>
 
+    <h3>Smart Timing</h3>
+    <div class="subheader">This feature can be enabled or disabled for each tab separately, and if enabled, adjusts a pending reload if there is user activity inside it. This way it avoids reloading the page while you are interacting with it. Its behavior can be influenced with the following options.</div>
+
+    Behavior when typing into a text field:
+    <form id="SmartTimingTypeReaction">
+        <label><input type="radio" name="SmartTimingTypeReaction" id="radSmartTimingTextDisable" value="radSmartTimingTextDisable"/>Disable periodic reloading for that tab</label><br/>
+        <label><input type="radio" name="SmartTimingTypeReaction" id="radSmartTimingTextDelay" value="radSmartTimingTextDelay"/>Delay periodic reloading like for any other activity</label><br/>
+    </form>
+
+    <form>
+        <label>If general activity is detected, delay a pending reload by <input type="text" id="txtSmartTimingActivityDelay" style="width:70px"/> seconds.</label><br/>
+    </form>
+
     <h3>Pinning</h3>
     <div class="subheader">If you enable this option, pinning or unpinning a tab will automatically set or clear the tab's "Remember page" property. <span class="warning">Note:</span> Only takes effect on newly pinned/unpinned tabs.</div>
     <form>
