@@ -367,7 +367,22 @@ browser.webRequest.onBeforeRequest.addListener((details) => {
         // We just issued a POST-request,
         // and the user didn't yet confirm this.
         // So disable autoreloads.
-        obj.period = -1
+        if (obj.period != -1) {
+            obj.period = -1
+            if (Settings.notifications.unconfirmedPost) {
+                browser.notifications.create(
+                    "clickActivateTab-" + details.tabId,
+                    {
+                        "type": "basic",
+                        "iconUrl": browser.extension.getURL("icon.svg"),
+                        "title": "Timer disabled - POST page",
+                        "message":
+                        "Please reset timer in the affected\r\n"+
+                        "tab and confirm if asked."
+                    }
+                );
+            }
+        }
         applyTabProps(obj)
     }
 },
@@ -456,8 +471,23 @@ browser.webNavigation.onCommitted.addListener((details) => {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
             obj.period = -1
-            applyTabProps(obj)
-                .then(() => rememberGet(obj));
+            applyTabProps(obj).then(() => rememberGet(obj));
+
+            if (Settings.notifications.navigateAway) {
+                browser.notifications.create(
+                    "clickActivateTab-" + details.tabId,
+                    {
+                        "type": "basic",
+                        "iconUrl": browser.extension.getURL("icon.svg"),
+                        "title": "Timer disabled - you left the page",
+                        "message":
+                        "If you don't want this to happen again,\r\n"+
+                        "enable the Sticky Reload option in the\r\n"+
+                        "tab or make it default in the addon settings."
+                    }
+                );
+            }
+
         } else {
             rememberGet(obj);
         }
@@ -496,7 +526,24 @@ browser.runtime.onMessage.addListener((message) => {
             freezeReload(message.tabId, Settings.smartTiming.delaySecs*1000)
         } else {
             let obj = getTabProps(message.tabId)
-            setTabPeriod(obj, -1);
+            if (obj.period != -1)
+            {
+                setTabPeriod(obj, -1);
+                if (Settings.notifications.textInput) {
+                    browser.notifications.create(
+                        "clickActivateTab-" + message.tabId,
+                        {
+                            "type": "basic",
+                            "iconUrl": browser.extension.getURL("icon.svg"),
+                            "title": "Timer disabled - you are typing",
+                            "message":
+                            "If you wish to keep the timer enabled,\r\n"+
+                            "disable Smart Timing or change its options\r\n"+
+                            "in the addon settings."
+                        }
+                    );
+                }
+            }
         }
     } else if (message.event == "set-tab-interval") {
         setTabPeriod(getTabProps(message.tabId), message.period);
@@ -667,6 +714,11 @@ function GetDefaultSettings() {
             delaySecs: 5,
             typeReaction: "radSmartTimingTextDisable"
         },
+        notifications: {
+            unconfirmedPost: true,
+            navigateAway: false,
+            textInput: true
+        },
         pinSetsRemember: true,
         neverConfirmPost: false
     };
@@ -702,7 +754,28 @@ function LoadSettingsAsync() {
         });
 }
 
+function on_notification_clicked(notificationId) {
+
+    let tokens = notificationId.split("-");
+    let notifType = tokens[0];
+    let tabId = null;
+    if (tokens.length > 1) {
+        tabId = Number(tokens[1]);
+    }
+    if (notifType == "clickActivateTab")
+    {
+        // Activate tab
+        browser.tabs.update(tabId, {active: true});
+        // Activate the tab's window
+        browser.tabs.get(tabId).then((tab) => {
+            browser.windows.update(tab.windowId, { focused: true });
+        });
+    }
+}
+
 function on_addon_load() {
+
+    browser.notifications.onClicked.addListener(on_notification_clicked);
 
     LoadSettingsAsync()
         .then(() => browser.storage.local.get("upgrade"))

@@ -20,6 +20,14 @@
         <label><input type="checkbox" id="defDisableCache"/>Disable cache</label><br/>
     </form>
 
+    <h3>Notifications</h3>
+    <div class="subheader">ReloadMatic can notify you of events that could be of interest to you. You can set which notifications you wish to receive here.</div>
+    <form>
+        <label><input type="checkbox" id="chkNotifUnconfirmedPost"/>Timer disabled due to yet-unconfirmed POST processing.</label><br/>
+        <label><input type="checkbox" id="chkNotifNavigateAway"/>Timer disabled because user navigated to a different page.</label><br/>
+        <label><input type="checkbox" id="chkNotifTextInput"/>Timer disabled because user started typing in page.</label><br/>
+    </form>
+
     <h3>Smart Timing</h3>
     <div class="subheader">This feature can be enabled or disabled for each tab separately, and if enabled, adjusts a pending reload if there is user activity inside it. This way it avoids reloading the page while you are interacting with it. Its behavior can be influenced with the following options.</div>
 

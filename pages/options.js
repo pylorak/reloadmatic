@@ -8,6 +8,9 @@ var chkPinningSetsRemember;
 var txtSmartTimingActivityDelay;
 var radSmartTimingTextDisable;
 var radSmartTimingTextDelay;
+var chkNotifUnconfirmedPost;
+var chkNotifNavigateAway;
+var chkNotifTextInput;
 
 function isEmpty(str) {
     return (!str || (0 === str.length));
@@ -27,6 +30,9 @@ function storeSettings(evt) {
     s.defaults.nocache = chkDefDisableCache.checked;
     s.pinSetsRemember = chkPinningSetsRemember.checked;
     s.smartTiming.typeReaction = document.getElementById('SmartTimingTypeReaction').elements['SmartTimingTypeReaction'].value;
+    s.notifications.unconfirmedPost = chkNotifUnconfirmedPost.checked;
+    s.notifications.navigateAway = chkNotifNavigateAway.checked;
+    s.notifications.textInput = chkNotifTextInput.checked;
 
     // Only save input if valid
     if (isInt(txtSmartTimingActivityDelay.value)) {
@@ -46,6 +52,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     radSmartTimingTextDisable = document.getElementById('radSmartTimingTextDisable');
     radSmartTimingTextDelay = document.getElementById('radSmartTimingTextDelay');
     txtSmartTimingActivityDelay = document.getElementById("txtSmartTimingActivityDelay");
+    chkNotifUnconfirmedPost = document.getElementById("chkNotifUnconfirmedPost");
+    chkNotifNavigateAway = document.getElementById("chkNotifNavigateAway");
+    chkNotifTextInput = document.getElementById("chkNotifTextInput");
 
     // Connect input events to all input elements
     // TODO: use selector instead of array
@@ -58,7 +67,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
         chkPinningSetsRemember,
         radSmartTimingTextDelay,
         radSmartTimingTextDisable,
-        txtSmartTimingActivityDelay
+        txtSmartTimingActivityDelay,
+        chkNotifUnconfirmedPost,
+        chkNotifNavigateAway,
+        chkNotifTextInput
     ];
     for (let i = 0; i < inputs.length; i++) {
         inputs[i].addEventListener('input', storeSettings);
@@ -85,5 +97,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
         chkPinningSetsRemember.checked = settings.pinSetsRemember;
         txtSmartTimingActivityDelay.value = settings.smartTiming.delaySecs;
         document.getElementById(settings.smartTiming.typeReaction).checked = true;
+        chkNotifUnconfirmedPost.checked = settings.notifications.unconfirmedPost;
+        chkNotifNavigateAway.checked = settings.notifications.navigateAway;
+        chkNotifTextInput.checked = settings.notifications.textInput;
     });
 });
