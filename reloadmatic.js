@@ -82,13 +82,12 @@ browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
     state.delete(key)
 })
 
-function restartAlarm(obj) {
+async function restartAlarm(obj) {
     // If period is negative we are deleting the alarm
     browser.alarms.clear(obj.alarmName)
     if (obj.period < 0) {
         obj.postConfirmed = false;
-        browser.tabs.sendMessage(obj.tabId, {event: "timer-disabled"});
-        return
+        return browser.tabs.sendMessage(obj.tabId, {event: "timer-disabled"});
     }
 
     // Create new alarm
@@ -99,85 +98,93 @@ function restartAlarm(obj) {
         period = Math.random() * (max - min + 1) + min
     }
     browser.alarms.create(obj.alarmName, { delayInMinutes: period * TIME_FACTOR });
-    browser.tabs.sendMessage(obj.tabId, {event: "timer-enabled"});
+    return browser.tabs.sendMessage(obj.tabId, {event: "timer-enabled"});
 }
 
-function applyTabProps(obj) {
-    return refreshMenu()
-        .then(() => restartAlarm(obj))
-        .then(() => {
-            if (session57Available) {
-                return browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj);
-            }
-        });
+async function applyTabProps(obj) {
+    let promises = [];
+    promises.push(refreshMenu);
+    promises.push(restartAlarm(obj));
+    if (session57Available) {
+        promises.push(browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj));
+    }
+    return Promise.all(promises);
 }
 
-function setTabPeriod(obj, period) {
-    browser.tabs.get(obj.tabId).then((tab) => {   // prevents saving if tab does not exist anymore
+async function setTabPeriod(obj, period) {
 
-        // If this page was requested using POST, make sure the user
-        // knows the risks and really wants to refresh
-        if ((obj.reqMethod != "GET") && (period != -1) && !obj.postConfirmed && !Settings.neverConfirmPost) {
-            let popupURL = browser.extension.getURL("pages/post-confirm.html");
-            let createData = {
-                type: "popup",
-                url: `${popupURL}?tabId=${obj.tabId}&period=${period}`,
-                width: 800,
-                height: 247
-            };
-            browser.windows.create(createData).then((win) => {
-                browser.windows.update(win.id, { drawAttention: true })
-            });
-            return;
-        }
+    let tab;
+    try {
+        tab = await browser.tabs.get(obj.tabId);
+    }
+    catch (err) {
+        // Tab already closed. Ignore.
+        return;
+    }
 
-        // Custom interval
-        if (period == -2) {
-            let popupURL = browser.extension.getURL("pages/custom-interval.html");
-            let createData = {
-                type: "popup",
-                url: `${popupURL}?tabId=${obj.tabId}`,
-                width: 400,
-                height: 247
-            };
-            browser.windows.create(createData).then((win) => {
-                browser.windows.update(win.id, { drawAttention: true })
-            });
-            return;
-        }
+    // If this page was requested using POST, make sure the user
+    // knows the risks and really wants to refresh
+    if ((obj.reqMethod != "GET") && (period != -1) && !obj.postConfirmed && !Settings.neverConfirmPost) {
+        let popupURL = browser.extension.getURL("pages/post-confirm.html");
+        let createData = {
+            type: "popup",
+            url: `${popupURL}?tabId=${obj.tabId}&period=${period}`,
+            width: 800,
+            height: 247
+        };
+        let win = await browser.windows.create(createData);
+        return browser.windows.update(win.id, { drawAttention: true });
+    }
 
-        // Set period truely
-        obj.period = period;
-        applyTabProps(obj);
-        rememberSet(obj);
-    });
+    // Custom interval
+    if (period == -2) {
+        let popupURL = browser.extension.getURL("pages/custom-interval.html");
+        let createData = {
+            type: "popup",
+            url: `${popupURL}?tabId=${obj.tabId}`,
+            width: 400,
+            height: 247
+        };
+        let win = await browser.windows.create(createData);
+        return browser.windows.update(win.id, { drawAttention: true });
+    }
+
+    // Set period truely
+    obj.period = period;
+    return Promise.all([applyTabProps(obj), rememberSet(obj)]);
 }
 
-function rememberSet(obj) {
+async function rememberSet(obj) {
+
     // We need the tab's URL
-    return browser.tabs.get(obj.tabId).then((tab) => {
+    let tab;
+    try {
+        tab = await browser.tabs.get(obj.tabId);
+    } catch (err) {
+        // Tab already closed. Ignore.
+        return;
+    }
 
-        // Don't store anything on the computer in incognito mode
-        if (tab.incognito) {
-            return;
-        }
+    // Don't store anything on the computer in incognito mode
+    if (tab.incognito) {
+        return;
+    }
 
-        // We use only portions of the URL to generalize it to a certain page
-        // without protocol or query parameters
-        let url = parseUri(tab.url);
-        url = url.authority + url.path;
+    // We use only portions of the URL to generalize it to a certain page
+    // without protocol or query parameters
+    let url = parseUri(tab.url);
+    url = url.authority + url.path;
 
-        // Store (or delete)
-        if (obj.remember) {
-            urlMemory.set(url, clone(obj));
-        } else {
-            urlMemory.delete(url);
-        }
+    // Store (or delete)
+    if (obj.remember) {
+        urlMemory.set(url, clone(obj));
+    } else {
+        urlMemory.delete(url);
+    }
 
-        return browser.storage.local.set({
-            // We can only serialize Map objects "unpacked"
-            urlMemory: [...urlMemory]
-        });
+    return browser.storage.local.set({
+        // We can only serialize Map objects "unpacked"
+        urlMemory: [...urlMemory]
     });
 }
 
@@ -192,7 +199,7 @@ function migratePropObj(newObj, oldObj) {
     });
 }
 
-function rememberGet(obj) {
+async function rememberGet(obj) {
     return browser.tabs.get(obj.tabId).then((tab) => {
         // Reconstruct the URL as we did while saving
         let url = parseUri(tab.url);
@@ -214,47 +221,41 @@ function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-function reloadTab(obj, forceNocache = false) {
+async function reloadTab(obj, forceNocache = false) {
     obj.reloadByAddon = true;
 
     if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
         // Delete old URL from history because our refresh
         // will create a new history entry.
-        return browser.history.search({ text: obj.url, maxResults: 1 })
-            .then((items) => {
-                if (items.length > 0) {
-                    let visitTime = items[0].lastVisitTime
-                    return browser.history.deleteRange({
-                        startTime: visitTime-1,
-                        endTime: visitTime+1
-                    });
-                } else {
-                    return true;
-                }
-            })
-            .then(() => {
-                obj.keepRefreshing = true;
-                let msg = {
-                    event: "reload",
-                    postData: obj.formData
-                };
-                return browser.tabs.sendMessage(obj.tabId, msg);
+        let items = await browser.history.search({ text: obj.url, maxResults: 1 });
+        if (items.length > 0) {
+            let visitTime = items[0].lastVisitTime
+            await browser.history.deleteRange({
+                startTime: visitTime-1,
+                endTime: visitTime+1
             });
+        }
+
+        obj.keepRefreshing = true;
+        let msg = {
+            event: "reload",
+            postData: obj.formData
+        };
+        return browser.tabs.sendMessage(obj.tabId, msg);
     } else {
         return browser.tabs.reload(obj.tabId, { bypassCache: forceNocache || obj.nocache });
     }
 }
 
-function reloadAllTabs() {
-    return browser.tabs.query({windowId: CurrentWindowId}).then((tabs) => {
-        let promises = [];
-        for (let tab of tabs) {
-            let obj = getTabProps(tab.id);
-            promises.push(reloadTab(obj));
-        }
+async function reloadAllTabs() {
+    let tabs = await browser.tabs.query({windowId: CurrentWindowId});
+    let promises = [];
+    for (let tab of tabs) {
+        let obj = getTabProps(tab.id);
+        promises.push(reloadTab(obj));
+    }
 
-        return Promise.all(promises);
-    });
+    return Promise.all(promises);
 }
 
 // Handle clicking on menu entries
