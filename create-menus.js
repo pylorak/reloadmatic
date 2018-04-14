@@ -16,7 +16,7 @@ const num_periods = reload_periods.length
 browser.menus.create({
     id: "reloadmatic-mnu-root",
     title: "Reload",
-    contexts: ["all"]
+    contexts: ["all", "tab"]
 });
 
 for (let i = 0; i < num_periods/2; i++) {

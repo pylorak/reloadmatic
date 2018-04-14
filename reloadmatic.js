@@ -7,6 +7,9 @@ const TIME_FACTOR = 1.0 / 60.0
 // true if we can use session APIs from FF 57.0
 const session57Available = (typeof browser.sessions.setTabValue === "function")
 
+// true if we can use menu APIs from FF 60.0
+const menu60Available = (typeof browser.menus.refresh === "function")
+
 // Here we store all our data about tabs
 var state = new Map()
 
@@ -688,6 +691,15 @@ function refreshMenu() {
         let tab = tabs[0];
         CurrentWindowId = tab.windowId
         return menuSetActiveTab(tab.id);
+    });
+}
+
+if (menu60Available) {
+    browser.menus.onShown.addListener((info, tab) => {
+        return menuSetActiveTab(tab.id)
+        .then(() => {
+            return browser.menus.refresh();
+        })
     });
 }
 
