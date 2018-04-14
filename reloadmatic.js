@@ -562,8 +562,12 @@ browser.tabs.onActivated.addListener((info) => {
     // Delay reload on activity
     freezeReload(info.tabId, Settings.smartTiming.delaySecs*1000)
 
-    // Update menu for newly activated tab
-    refreshMenu(info.tabId)
+    // If we are using FF60, we update the menu in its onShown().
+    // Otherwise we update it here.
+    if (!menu60Available) {
+        // Update menu for newly activated tab
+        menuSetActiveTab(info.tabId);
+    }
 })
 
 browser.windows.onFocusChanged.addListener((windowId) => {
@@ -573,7 +577,9 @@ browser.windows.onFocusChanged.addListener((windowId) => {
         if (tabs.length > 0) {
             let tab = tabs[0];
             freezeReload(tab.id, Settings.smartTiming.delaySecs*1000)
-            return refreshMenu(tab.id)
+            if (!menu60Available) { // In FF60, the menu's onShown() handles the update
+                return menuSetActiveTab(tab.id)
+            }
         }
     })
 })
