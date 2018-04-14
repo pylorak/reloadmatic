@@ -645,7 +645,7 @@ function formatInterval(total) {
 
 function menuSetActiveTab(tabId) {
     let obj = getTabProps(tabId);
-    disablePeriodMenus()
+    return disablePeriodMenus()
         .then(() => browser.tabs.get(tabId))
         .then((tab) => {
 
