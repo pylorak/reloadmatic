@@ -200,17 +200,17 @@ function migratePropObj(newObj, oldObj) {
 }
 
 async function rememberGet(obj) {
-    let tab = await browser.tabs.get(obj.tabId);
     // Reconstruct the URL as we did while saving
+    let tab = await browser.tabs.get(obj.tabId);
     let url = parseUri(tab.url);
     url = url.authority + url.path;
 
     if (urlMemory.has(url)) {
         // Load stored settings
         migratePropObj(obj, urlMemory.get(url));
-
-        // Apply settings
-        return applyTabProps(obj);
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -473,8 +473,8 @@ browser.webNavigation.onCommitted.addListener(async function (details) {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
             obj.period = -1;
-            await applyTabProps(obj);
-            rememberGet(obj);
+            await rememberGet(obj);
+            applyTabProps(obj);
 
             if (Settings.notifications.navigateAway) {
                 browser.notifications.create(
@@ -492,7 +492,8 @@ browser.webNavigation.onCommitted.addListener(async function (details) {
             }
 
         } else {
-            rememberGet(obj);
+            await rememberGet(obj);
+            applyTabProps(obj);
         }
 
         // If the URL changed, forget scroll position in tab
@@ -809,9 +810,6 @@ async function on_addon_load() {
                     let newObj = newTabProps(obj.tabId);
                     migratePropObj(newObj, obj);
                     state.set(newObj.alarmName, newObj);
-
-                    // Reapply timers
-                    setTabPeriod(newObj, newObj.period);
                 }
 
                 upgrading = true;
@@ -835,30 +833,28 @@ async function on_addon_load() {
     let tabs = await browser.tabs.query({});
     let promises = [];
     for (let tab of tabs) {
-        promises.push(
-            // Our content-script is only automatically loaded to new pages.
-            // This means we need to load our content script at add-on load time
-            // manually to all already open tabs.
-            browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
-                return sendContentTabId(tab.id)
-            })
-        );
+        promises.push(Promise.resolve().then(async function() {
+            let obj = getTabProps(tab.id);
+            let rememberGetPromise = rememberGet(obj);
 
-        let obj = getTabProps(tab.id);
-        if (!upgrading) {
-            // Already loaded tabs might be using POST *sigh*
-            // We can't just use POST in this case
-            // because if the page is using GET, POSTing might
-            // be completely disallowed. So we'll fall back to
-            // browser reload, but say that the user has
-            // already confirmed POST. This way the browser
-            // might show a popup, but ReloadMatic will then
-            // see it was a POST, and at least won't ask a
-            // second time by itself.
-            obj.reqMethod = "GET";
-            obj.postConfirmed = true;
-        }
-        promises.push(rememberGet(obj));
+            await browser.tabs.executeScript(tab.id, { file: "/content-script.js" });
+            await sendContentTabId(tab.id);
+            if (!upgrading) {
+                // Already loaded tabs might be using POST *sigh*
+                // We can't just use POST in this case
+                // because if the page is using GET, POSTing might
+                // be completely disallowed. So we'll fall back to
+                // browser reload, but say that the user has
+                // already confirmed POST. This way the browser
+                // might show a popup, but ReloadMatic will then
+                // see it was a POST, and at least won't ask a
+                // second time by itself.
+                obj.reqMethod = "GET";
+                obj.postConfirmed = true;
+            }
+            await rememberGetPromise;
+            return applyTabProps(obj);
+        }));
     }
     await Promise.all(promises);
 
