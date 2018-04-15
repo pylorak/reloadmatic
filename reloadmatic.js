@@ -17,7 +17,10 @@ var state = new Map()
 var urlMemory = new Map();
 
 // ID of the currently focused window
-var CurrentWindowId = 0
+var CurrentWindowId = -1;
+
+// ID of the currently active tab in the currently focused window
+var CurrentTabId = -1;
 
 // Here we store all user settings for the plugin
 var Settings;
@@ -560,6 +563,13 @@ browser.runtime.onMessage.addListener((message) => {
 })
 
 browser.tabs.onActivated.addListener((info) => {
+    // Ignore event if this is not the currently focused window
+    if (info.windowId != CurrentWindowId) {
+        return;
+    }
+
+    CurrentTabId = info.tabId;
+
     // Delay reload on activity
     freezeReload(info.tabId, Settings.smartTiming.delaySecs*1000)
 
@@ -577,6 +587,7 @@ browser.windows.onFocusChanged.addListener(async function(windowId) {
     let tabs = await browser.tabs.query({ windowId: CurrentWindowId, active: true });
     if (tabs.length > 0) {
         let tab = tabs[0];
+        CurrentTabId = tab.id;
         freezeReload(tab.id, Settings.smartTiming.delaySecs*1000)
         if (!menu60Available) { // In FF60, the menu's onShown() handles the update
             return updateMenuForTab(tab.id)
@@ -705,10 +716,19 @@ async function refreshMenu() {
         return;
     }
 
-    // We take this path if we don't know the current tab id
+    // Get currently active tab (and window)
     let tabs = await browser.tabs.query({ currentWindow: true, active: true });
     let tab = tabs[0];
-    CurrentWindowId = tab.windowId
+    if ((CurrentWindowId == -1) || (CurrentTabId == -1)) {
+        CurrentWindowId = tab.windowId;
+        CurrentTabId = tab.id;
+    }
+
+    // Ignore update request if this is not the active tab
+    if ((CurrentWindowId != tab.windowId) || (CurrentTabId != tab.id)) {
+        return;
+    }
+
     return updateMenuForTab(tab.id);
 }
 
@@ -869,7 +889,6 @@ async function on_addon_load() {
         }));
     }
     await Promise.all(promises);
-    refreshMenu();
 }
 
 on_addon_load().catch(console.log.bind(console));
