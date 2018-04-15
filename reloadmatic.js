@@ -371,6 +371,7 @@ browser.webRequest.onBeforeRequest.addListener((details) => {
         // So disable autoreloads.
         if (obj.period != -1) {
             obj.period = -1
+            applyTabProps(obj)
             if (Settings.notifications.unconfirmedPost) {
                 browser.notifications.create(
                     "clickActivateTab-" + details.tabId,
@@ -385,7 +386,6 @@ browser.webRequest.onBeforeRequest.addListener((details) => {
                 );
             }
         }
-        applyTabProps(obj)
     }
 },
     { urls: ["<all_urls>"], types: ["main_frame"] },
@@ -698,6 +698,13 @@ async function updateMenuForTab(tabId) {
 }
 
 async function refreshMenu() {
+
+    // In FF60, the menu's onShown() handles the update,
+    // in which case we have nothing to do here.
+    if (menu60Available) {
+        return;
+    }
+
     // We take this path if we don't know the current tab id
     let tabs = await browser.tabs.query({ currentWindow: true, active: true });
     let tab = tabs[0];
@@ -837,7 +844,12 @@ async function on_addon_load() {
             let obj = getTabProps(tab.id);
             let rememberGetPromise = rememberGet(obj);
 
-            await browser.tabs.executeScript(tab.id, { file: "/content-script.js" });
+            await browser.tabs.executeScript(tab.id,
+                {
+                    file: "/content-script.js",
+                    runAt: "document_start"
+                }
+            );
             await sendContentTabId(tab.id);
             if (!upgrading) {
                 // Already loaded tabs might be using POST *sigh*
@@ -857,11 +869,7 @@ async function on_addon_load() {
         }));
     }
     await Promise.all(promises);
-
-    if (!menu60Available) { // In FF60, the menu's onShown() handles the update
-       // Update menu to show status of active tab in current window
-        refreshMenu();
-    }
+    refreshMenu();
 }
 
 on_addon_load().catch(console.log.bind(console));
