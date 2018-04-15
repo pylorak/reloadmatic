@@ -566,7 +566,7 @@ browser.tabs.onActivated.addListener((info) => {
     // Otherwise we update it here.
     if (!menu60Available) {
         // Update menu for newly activated tab
-        menuSetActiveTab(info.tabId);
+        updateMenuForTab(info.tabId);
     }
 })
 
@@ -578,7 +578,7 @@ browser.windows.onFocusChanged.addListener(async function(windowId) {
         let tab = tabs[0];
         freezeReload(tab.id, Settings.smartTiming.delaySecs*1000)
         if (!menu60Available) { // In FF60, the menu's onShown() handles the update
-            return menuSetActiveTab(tab.id)
+            return updateMenuForTab(tab.id)
         }
     }
 })
@@ -651,7 +651,7 @@ function formatInterval(total) {
     return ret
 }
 
-async function menuSetActiveTab(tabId) {
+async function updateMenuForTab(tabId) {
 
     // We only need these later, but we start them early
     // to have the async results ready by the time we need them.
@@ -701,12 +701,12 @@ async function refreshMenu() {
     let tabs = await browser.tabs.query({ currentWindow: true, active: true });
     let tab = tabs[0];
     CurrentWindowId = tab.windowId
-    return menuSetActiveTab(tab.id);
+    return updateMenuForTab(tab.id);
 }
 
 if (menu60Available) {
     browser.menus.onShown.addListener(async function(info, tab) {
-        await menuSetActiveTab(tab.id);
+        await updateMenuForTab(tab.id);
         return browser.menus.refresh();
     });
 }
