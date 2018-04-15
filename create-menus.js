@@ -11,12 +11,15 @@ const reload_periods = [
     14400, "Every 4 hours",
     -2, "Custom interval"
 ]
-const num_periods = reload_periods.length
+const num_periods = reload_periods.length;
+
+const canUseTabContext = (typeof browser.menus.refresh === "function");
+const menuContexts = canUseTabContext ? ["all", "tab"] : ["all"];
 
 browser.menus.create({
     id: "reloadmatic-mnu-root",
     title: "Reload",
-    contexts: ["all", "tab"]
+    contexts: menuContexts
 });
 
 for (let i = 0; i < num_periods/2; i++) {
