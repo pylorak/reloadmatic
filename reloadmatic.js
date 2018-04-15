@@ -660,11 +660,27 @@ function formatInterval(total) {
 
 async function menuSetActiveTab(tabId) {
 
-    await disablePeriodMenus();
+    // We only need these later, but we start them early
+    // to have the async results ready by the time we need them.
+    let tabPromise = browser.tabs.get(tabId);
+    let periodResetPromise = disablePeriodMenus();
 
     let obj = getTabProps(tabId);
-    let tab = await browser.tabs.get(tabId);
     let promises = [];
+
+    promises.push(browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize }));
+    promises.push(browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError }));
+    promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
+    promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
+    promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
+
+    // Enable/disable "Remember Page" based on incognito mode
+    let tab = await tabPromise;
+    if (tab.incognito) {
+        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: false, enabled: false }));
+    } else {
+        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember, enabled: true }));
+    }
 
     // Iterate through available presets to see if our setting
     // corresponds to one of them or maybe it's a custom interval.
@@ -676,22 +692,13 @@ async function menuSetActiveTab(tabId) {
         }
     }
 
+    // Select the correct timer period menu option
+    await periodResetPromise;
     if (custom) {
         promises.push(browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` }));
     } else {
         promises.push(browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true }));
     }
-
-    if (tab.incognito) {
-        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: false, enabled: false }));
-    } else {
-        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember, enabled: true }));
-    }
-    promises.push(browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize }));
-    promises.push(browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError }));
-    promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
-    promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
-    promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
 
     return Promise.all(promises);
 }
