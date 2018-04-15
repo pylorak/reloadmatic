@@ -260,7 +260,6 @@ async function reloadAllTabs() {
 
 // Handle clicking on menu entries
 browser.menus.onClicked.addListener(function (info, tab) {
-    //    browser.menus.update("reloadmatic-mnu-root", { title: `Tab ID: ${tab.id}` })
 
     if (info.menuItemId === 'reloadmatic-mnu-settings') {
         browser.runtime.openOptionsPage();
@@ -324,14 +323,18 @@ browser.menus.onClicked.addListener(function (info, tab) {
                 other.postConfirmed = oldOther.postConfirmed;
                 setTabPeriod(other, other.period);
             }
-        });
+            return;
+        })
+        .catch(console.log.bind(console));
     } else if (info.menuItemId === 'reloadmatic-mnu-disable-all') {
         browser.tabs.query({}).then((tabs) => {
             for (let tab of tabs) {
                 let obj = getTabProps(tab.id);
                 setTabPeriod(obj, -1);
             }
-        });
+            return;
+        })
+        .catch(console.log.bind(console));
     }
 
     if (session57Available) {
@@ -354,8 +357,10 @@ if (session57Available) {
                 state.set(alarm_name, obj)
                 applyTabProps(obj)
             }
+            return;
         })
-    })
+        .catch(console.log.bind(console));
+    });
 }
 
 browser.webRequest.onBeforeRequest.addListener((details) => {
@@ -411,7 +416,7 @@ browser.alarms.onAlarm.addListener((alarm) => {
     }   // if onlyOnError ...
 });
 
-function sendContentTabId(tabId) {
+async function sendContentTabId(tabId) {
     let msg = {
         event: "set-tab-id",
         tabId: tabId
@@ -460,7 +465,7 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 });
 
-browser.webNavigation.onCommitted.addListener((details) => {
+browser.webNavigation.onCommitted.addListener(async function (details) {
     // Remove alarm if tab navigated due to a user action
     if (details.frameId == 0) {
         let tabId = details.tabId
@@ -474,8 +479,9 @@ browser.webNavigation.onCommitted.addListener((details) => {
         if (cancelTimer) {
             // On a user-initiated navigation,
             // we cancel the timer but leave other settings alone
-            obj.period = -1
-            applyTabProps(obj).then(() => rememberGet(obj));
+            obj.period = -1;
+            await applyTabProps(obj);
+            rememberGet(obj);
 
             if (Settings.notifications.navigateAway) {
                 browser.notifications.create(
@@ -571,18 +577,17 @@ browser.tabs.onActivated.addListener((info) => {
     }
 })
 
-browser.windows.onFocusChanged.addListener((windowId) => {
+browser.windows.onFocusChanged.addListener(async function(windowId) {
     CurrentWindowId = windowId
 
-    browser.tabs.query({ windowId: CurrentWindowId, active: true }).then((tabs) => {
-        if (tabs.length > 0) {
-            let tab = tabs[0];
-            freezeReload(tab.id, Settings.smartTiming.delaySecs*1000)
-            if (!menu60Available) { // In FF60, the menu's onShown() handles the update
-                return menuSetActiveTab(tab.id)
-            }
+    let tabs = await browser.tabs.query({ windowId: CurrentWindowId, active: true });
+    if (tabs.length > 0) {
+        let tab = tabs[0];
+        freezeReload(tab.id, Settings.smartTiming.delaySecs*1000)
+        if (!menu60Available) { // In FF60, the menu's onShown() handles the update
+            return menuSetActiveTab(tab.id)
         }
-    })
+    }
 })
 
 
@@ -608,7 +613,7 @@ browser.webRequest.onCompleted.addListener(webRequestComplete, { urls: ["<all_ur
 * Following functions are used for updating the menu
 ***********************************************/
 
-function disablePeriodMenus() {
+async function disablePeriodMenus() {
     let promises = [];
     for (let i = 0; i < num_periods / 2; i++) {
         promises.push(
@@ -653,71 +658,66 @@ function formatInterval(total) {
     return ret
 }
 
-function menuSetActiveTab(tabId) {
+async function menuSetActiveTab(tabId) {
+
+    await disablePeriodMenus();
+
     let obj = getTabProps(tabId);
-    return disablePeriodMenus()
-        .then(() => browser.tabs.get(tabId))
-        .then((tab) => {
+    let tab = await browser.tabs.get(tabId);
+    let promises = [];
 
-            let promises = [];
+    // Iterate through available presets to see if our setting
+    // corresponds to one of them or maybe it's a custom interval.
+    let custom = true
+    for (let i = 0; i < num_periods / 2; i++) {
+        if (reload_periods[i * 2] === obj.period) {
+            custom = false
+            break;
+        }
+    }
 
-            // Iterate through available presets to see if our setting
-            // corresponds to one of them or maybe it's a custom interval.
-            let custom = true
-            for (let i = 0; i < num_periods / 2; i++) {
-                if (reload_periods[i * 2] === obj.period) {
-                    custom = false
-                    break;
-                }
-            }
+    if (custom) {
+        promises.push(browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` }));
+    } else {
+        promises.push(browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true }));
+    }
 
-            if (custom) {
-                promises.push(browser.menus.update(`reloadmatic-mnu-period--2`, { checked: true, title: `Custom:${formatInterval(obj.period)}` }));
-            } else {
-                promises.push(browser.menus.update(`reloadmatic-mnu-period-${obj.period}`, { checked: true }));
-            }
+    if (tab.incognito) {
+        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: false, enabled: false }));
+    } else {
+        promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember, enabled: true }));
+    }
+    promises.push(browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize }));
+    promises.push(browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError }));
+    promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
+    promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
+    promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
 
-            if (tab.incognito) {
-                promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: false, enabled: false }));
-            } else {
-                promises.push(browser.menus.update("reloadmatic-mnu-remember", { checked: obj.remember, enabled: true }));
-            }
-            promises.push(browser.menus.update("reloadmatic-mnu-randomize", { checked: obj.randomize }));
-            promises.push(browser.menus.update("reloadmatic-mnu-unsuccessful", { checked: obj.onlyOnError }));
-            promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
-            promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
-            promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
-
-            return Promise.all(promises);
-        });
+    return Promise.all(promises);
 }
 
-function refreshMenu() {
+async function refreshMenu() {
     // We take this path if we don't know the current tab id
-    return browser.tabs.query({ currentWindow: true, active: true }).then((tabs) => {
-        let tab = tabs[0];
-        CurrentWindowId = tab.windowId
-        return menuSetActiveTab(tab.id);
-    });
+    let tabs = await browser.tabs.query({ currentWindow: true, active: true });
+    let tab = tabs[0];
+    CurrentWindowId = tab.windowId
+    return menuSetActiveTab(tab.id);
 }
 
 if (menu60Available) {
-    browser.menus.onShown.addListener((info, tab) => {
-        return menuSetActiveTab(tab.id)
-        .then(() => {
-            return browser.menus.refresh();
-        })
+    browser.menus.onShown.addListener(async function(info, tab) {
+        await menuSetActiveTab(tab.id);
+        return browser.menus.refresh();
     });
 }
 
-browser.runtime.onUpdateAvailable.addListener((details) => {
+browser.runtime.onUpdateAvailable.addListener(async function(details) {
     let upgradeInfo = {
         version: CONFIG_VERSION,
         state: [...state]
     };
-    browser.storage.local.set({ upgrade: upgradeInfo }).then(() => {
-        browser.runtime.reload();
-    });
+    await browser.storage.local.set({ upgrade: upgradeInfo });
+    return browser.runtime.reload();
 });
 
 function GetDefaultSettings() {
@@ -743,34 +743,29 @@ function GetDefaultSettings() {
     };
 }
 
-function LoadSettingsAsync() {
-    return Promise.resolve()
-        .then(() => {
-            return browser.storage.local.get("settings")
-        }).then((results) => {
-            if (results && results.settings) {
-                Settings = results.settings;
-                return Settings;
-            } else {
-                throw null;
-            }
-        }).catch(() => {
-            return GetDefaultSettings();
-        }).then((settings) => {
-            // If saved settings has missing keys (for example we upgraded
-            // and new addon version supports more options), we migrate
-            // old settings into the new settings structure here.
-            let tmp = GetDefaultSettings();
-            Object.keys(tmp).forEach(function (key, index) {
-                if (settings.hasOwnProperty(key)) {
-                    tmp[key] = settings[key];
-                }
-            });
+async function LoadSettingsAsync() {
 
-            // Done
-            Settings = tmp;
-            return Settings;
+    let results = await browser.storage.local.get("settings");
+    if (results && results.settings) {
+        let settings = results.settings;
+
+        // If saved settings has missing keys (for example we upgraded
+        // and new addon version supports more options), we migrate
+        // old settings into the new settings structure here.
+        let tmp = GetDefaultSettings();
+        Object.keys(tmp).forEach(function (key, index) {
+            if (settings.hasOwnProperty(key)) {
+                tmp[key] = settings[key];
+            }
         });
+
+        // Done.
+        Settings = tmp;
+    } else {
+        // Error. Load defaults.
+        Settings = GetDefaultSettings();
+    }
+    return Settings;
 }
 
 function on_notification_clicked(notificationId) {
@@ -787,91 +782,88 @@ function on_notification_clicked(notificationId) {
         browser.tabs.update(tabId, {active: true});
         // Activate the tab's window
         browser.tabs.get(tabId).then((tab) => {
-            browser.windows.update(tab.windowId, { focused: true });
-        });
+            return browser.windows.update(tab.windowId, { focused: true });
+        })
+        .catch(console.log.bind(console));
     }
 }
 
-function on_addon_load() {
+async function on_addon_load() {
 
     browser.notifications.onClicked.addListener(on_notification_clicked);
 
-    LoadSettingsAsync()
-        .then(() => browser.storage.local.get("upgrade"))
-        .then((results) => {
+    await LoadSettingsAsync();
 
-            let upgrading = false;
+    let upgrading = false;
+    try {
+        let results = await browser.storage.local.get("upgrade");
+        if (results && results.upgrade) {
+            if (results.upgrade.version <= CONFIG_VERSION) {
 
-            if (results && results.upgrade) {
-                if (results.upgrade.version <= CONFIG_VERSION) {
+                let newState = new Map(results.upgrade.state)
 
-                    let newState = new Map(results.upgrade.state)
+                for (var [key, obj] of newState) {
 
-                    for (var [key, obj] of newState) {
+                    // Migrate settings from old version
+                    let newObj = newTabProps(obj.tabId);
+                    migratePropObj(newObj, obj);
+                    state.set(newObj.alarmName, newObj);
 
-                        // Migrate settings from old version
-                        let newObj = newTabProps(obj.tabId);
-                        migratePropObj(newObj, obj);
-                        state.set(newObj.alarmName, newObj);
-
-                        // Reapply timers
-                        setTabPeriod(newObj, newObj.period);
-                    }
-
-                    upgrading = true;
+                    // Reapply timers
+                    setTabPeriod(newObj, newObj.period);
                 }
+
+                upgrading = true;
             }
+        }
+    }
+    catch (err) {
+        // Ignore errors from upgrade.
+        console.log(err);
+    }
 
-            return upgrading;
-        })
-        .catch(() => Promise.resolve(false))
-        .then((upgrading) => {
-            // Remove stuff that we only needed for the upgrade
-            browser.storage.local.remove("upgrade")
+    // Remove stuff that we only needed for the upgrade
+    browser.storage.local.remove("upgrade");
 
-            browser.storage.local.get("urlMemory")
-                .then((results) => {
-                    let p = browser.tabs.query({});
-                    if (results && results.urlMemory) {
-                        urlMemory = new Map(results.urlMemory);
-                    }
-                    return p;
-                })
-                .then((tabs) => {
-                    let promises = [];
-                    for (let tab of tabs) {
-                        promises.push(
-                            // Our content-script is only automatically loaded to new pages.
-                            // This means we need to load our content script at add-on load time
-                            // manually to all already open tabs.
-                            browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
-                                sendContentTabId(tab.id)
-                            })
-                        );
+    let results = await browser.storage.local.get("urlMemory");
+    if (results && results.urlMemory) {
+        urlMemory = new Map(results.urlMemory);
+    }
 
-                        let obj = getTabProps(tab.id);
-                        if (!upgrading) {
-                            // Already loaded tabs might be using POST *sigh*
-                            // We can't just use POST in this case
-                            // because if the page is using GET, POSTing might
-                            // be completely disallowed. So we'll fall back to
-                            // browser reload, but say that the user has
-                            // already confirmed POST. This way the browser
-                            // might show a popup, but ReloadMatic will then
-                            // see it was a POST, and at least won't ask a
-                            // second time by itself.
-                            obj.reqMethod = "GET";
-                            obj.postConfirmed = true;
-                        }
-                        promises.push(rememberGet(obj));
-                    }
-                    return Promise.all(promises);
-                })
-                .then(() => {
-                    // Update menu to show status of active tab in current window
-                    refreshMenu();
-                })
-        });
+    let tabs = await browser.tabs.query({});
+    let promises = [];
+    for (let tab of tabs) {
+        promises.push(
+            // Our content-script is only automatically loaded to new pages.
+            // This means we need to load our content script at add-on load time
+            // manually to all already open tabs.
+            browser.tabs.executeScript(tab.id, { file: "/content-script.js" }).then((result) => {
+                return sendContentTabId(tab.id)
+            })
+        );
+
+        let obj = getTabProps(tab.id);
+        if (!upgrading) {
+            // Already loaded tabs might be using POST *sigh*
+            // We can't just use POST in this case
+            // because if the page is using GET, POSTing might
+            // be completely disallowed. So we'll fall back to
+            // browser reload, but say that the user has
+            // already confirmed POST. This way the browser
+            // might show a popup, but ReloadMatic will then
+            // see it was a POST, and at least won't ask a
+            // second time by itself.
+            obj.reqMethod = "GET";
+            obj.postConfirmed = true;
+        }
+        promises.push(rememberGet(obj));
+    }
+    await Promise.all(promises);
+
+    if (!menu60Available) { // In FF60, the menu's onShown() handles the update
+       // Update menu to show status of active tab in current window
+        refreshMenu();
+    }
 }
 
-on_addon_load()
+on_addon_load().catch(console.log.bind(console));
