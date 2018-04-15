@@ -113,12 +113,12 @@ async function applyTabProps(obj) {
 
 async function setTabPeriod(obj, period) {
 
-    let tab;
+    // Determine if the tab is still open, and do not continue if closed
     try {
-        tab = await browser.tabs.get(obj.tabId);
+        await browser.tabs.get(obj.tabId);
     }
     catch (err) {
-        // Tab already closed. Ignore.
+        // Tab already closed.
         return;
     }
 
@@ -200,21 +200,18 @@ function migratePropObj(newObj, oldObj) {
 }
 
 async function rememberGet(obj) {
-    return browser.tabs.get(obj.tabId).then((tab) => {
-        // Reconstruct the URL as we did while saving
-        let url = parseUri(tab.url);
-        url = url.authority + url.path;
+    let tab = await browser.tabs.get(obj.tabId);
+    // Reconstruct the URL as we did while saving
+    let url = parseUri(tab.url);
+    url = url.authority + url.path;
 
-        if (urlMemory.has(url)) {
-            // Load stored settings
-            migratePropObj(obj, urlMemory.get(url));
+    if (urlMemory.has(url)) {
+        // Load stored settings
+        migratePropObj(obj, urlMemory.get(url));
 
-            // Apply settings
-            return applyTabProps(obj);
-        } else {
-            return undefined;
-        }
-    });
+        // Apply settings
+        return applyTabProps(obj);
+    }
 }
 
 function clone(obj) {
@@ -343,23 +340,19 @@ browser.menus.onClicked.addListener(function (info, tab) {
 });
 
 if (session57Available) {
-    browser.tabs.onCreated.addListener((tab) => {
-        let tabId = tab.id
-        let obj = getTabProps(tabId)
-        browser.sessions.getTabValue(tabId, "reloadmatic").then((obj) => {
-            if (obj) {
-                // Handle restoring settings for an old tab.
-                // Tab ID might have changed, so correct for that.
-                let alarm_name = objKey(tabId)
-                obj.tabId = tabId
-                obj.alarmName = alarm_name
-                obj.keepRefreshing = true
-                state.set(alarm_name, obj)
-                applyTabProps(obj)
-            }
-            return;
-        })
-        .catch(console.log.bind(console));
+    browser.tabs.onCreated.addListener(async function(tab) {
+        let tabId = tab.id;
+        let obj = await browser.sessions.getTabValue(tabId, "reloadmatic");
+        if (obj) {
+            // Handle restoring settings for an old tab.
+            // Tab ID might have changed, so correct for that.
+            let alarm_name = objKey(tabId);
+            obj.tabId = tabId;
+            obj.alarmName = alarm_name;
+            obj.keepRefreshing = true;
+            state.set(alarm_name, obj);
+            return applyTabProps(obj);
+        }
     });
 }
 
@@ -787,6 +780,7 @@ function on_notification_clicked(notificationId) {
     {
         // Activate tab
         browser.tabs.update(tabId, {active: true});
+
         // Activate the tab's window
         browser.tabs.get(tabId).then((tab) => {
             return browser.windows.update(tab.windowId, { focused: true });
@@ -832,6 +826,7 @@ async function on_addon_load() {
     // Remove stuff that we only needed for the upgrade
     browser.storage.local.remove("upgrade");
 
+    // Load data for "Remember Page" function
     let results = await browser.storage.local.get("urlMemory");
     if (results && results.urlMemory) {
         urlMemory = new Map(results.urlMemory);
