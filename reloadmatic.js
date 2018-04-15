@@ -103,7 +103,7 @@ async function restartAlarm(obj) {
 
 async function applyTabProps(obj) {
     let promises = [];
-    promises.push(refreshMenu);
+    promises.push(refreshMenu());
     promises.push(restartAlarm(obj));
     if (session57Available) {
         promises.push(browser.sessions.setTabValue(obj.tabId, "reloadmatic", obj));
