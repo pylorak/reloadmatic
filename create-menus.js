@@ -85,6 +85,13 @@ browser.menus.create({
 });
 
 browser.menus.create({
+    id: "reloadmatic-mnu-fix-url",
+    title: "Fix URL",
+    type: "checkbox",
+    parentId: "reloadmatic-mnu-root"
+});
+
+browser.menus.create({
     id: "reloadmatic-mnu-separator-2",
     type: "separator",
     parentId: "reloadmatic-mnu-root"

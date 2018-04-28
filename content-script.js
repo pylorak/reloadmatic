@@ -39,9 +39,14 @@ function doPostRequest(url, postData) {
 browser.runtime.onMessage.addListener((message) => {
     if (message.event == "set-tab-id") {
         tabId = message.tabId
-    } else if (message.event == "reload") {
+    } else if (message.event == "reload-post") {
         let loc = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.search + window.location.hash;
         doPostRequest(loc, message.postData)
+    } else if (message.event == "reload-get") {
+        if (message.bypassCache) {
+            // TODO: implement force reload
+        }
+        window.location = message.url;
     } else if (message.event == "timer-enabled") {
         setTimerBadge(true, false);
     } else if (message.event == "timer-disabled") {

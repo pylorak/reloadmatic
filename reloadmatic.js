@@ -44,6 +44,7 @@ function newTabProps(tabId) {
         nocache: false,             // whether "Disable cache" is enabled
         remember: false,            // whether settings for this URL will be remembered
         period: -1,                 // canonical autoreload interval
+        fixedUrl: undefined,        // if set, a reload request will be made to this url
 
         // Internal State
         // ******************************
@@ -221,29 +222,48 @@ function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
+async function deleteLastHistoryEntry(obj) {
+    // Delete old URL from history because our refresh
+    // will create a new history entry.
+    let items = await browser.history.search({ text: obj.url, maxResults: 1 });
+    if (items.length > 0) {
+        let visitTime = items[0].lastVisitTime
+        return browser.history.deleteRange({
+            startTime: visitTime-1,
+            endTime: visitTime+1
+        });
+    }
+}
+
 async function reloadTab(obj, forceNocache = false) {
+
+    let bypassCache = forceNocache || obj.nocache;
     obj.reloadByAddon = true;
 
-    if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
-        // Delete old URL from history because our refresh
-        // will create a new history entry.
-        let items = await browser.history.search({ text: obj.url, maxResults: 1 });
-        if (items.length > 0) {
-            let visitTime = items[0].lastVisitTime
-            await browser.history.deleteRange({
-                startTime: visitTime-1,
-                endTime: visitTime+1
-            });
-        }
-
+    // Fixed URL reload
+    if (obj.fixedUrl != undefined) {
         obj.keepRefreshing = true;
+        await deleteLastHistoryEntry(obj);
         let msg = {
-            event: "reload",
+            event: "reload-get",
+            url: obj.fixedUrl,
+            bypassCache: bypassCache
+        };
+        return browser.tabs.sendMessage(obj.tabId, msg);
+
+    // Reload with POST-data
+    } else if ((obj.reqMethod != "GET") && (obj.postConfirmed || Settings.neverConfirmPost)) {
+        obj.keepRefreshing = true;
+        await deleteLastHistoryEntry(obj);
+        let msg = {
+            event: "reload-post",
             postData: obj.formData
         };
         return browser.tabs.sendMessage(obj.tabId, msg);
+
+    // Traditional GET-reload
     } else {
-        return browser.tabs.reload(obj.tabId, { bypassCache: forceNocache || obj.nocache });
+        return browser.tabs.reload(obj.tabId, { bypassCache: bypassCache });
     }
 }
 
@@ -259,7 +279,7 @@ async function reloadAllTabs() {
 }
 
 // Handle clicking on menu entries
-browser.menus.onClicked.addListener(function (info, tab) {
+browser.menus.onClicked.addListener(async function (info, tab) {
 
     if (info.menuItemId === 'reloadmatic-mnu-settings') {
         browser.runtime.openOptionsPage();
@@ -309,7 +329,21 @@ browser.menus.onClicked.addListener(function (info, tab) {
     } else if (info.menuItemId === 'reloadmatic-mnu-unsuccessful') {
         obj.onlyOnError = info.checked
         rememberSet(obj);
-        restartAlarm(obj)
+        restartAlarm(obj);
+    } else if (info.menuItemId === 'reloadmatic-mnu-fix-url') {
+        if (obj.fixedUrl != undefined) {
+            obj.fixedUrl = undefined;
+        } else {
+            let popupURL = browser.extension.getURL("pages/fix-url.html");
+            let createData = {
+                type: "popup",
+                url: `${popupURL}?tabId=${obj.tabId}`,
+                width: 800,
+                height: 247
+            };
+            let win = await browser.windows.create(createData);
+            browser.windows.update(win.id, { drawAttention: true });
+        }
     } else if (info.menuItemId === 'reloadmatic-mnu-reload') {
         reloadTab(obj, true);
     } else if (info.menuItemId === 'reloadmatic-mnu-reload-all') {
@@ -554,6 +588,9 @@ browser.runtime.onMessage.addListener((message) => {
         }
     } else if (message.event == "set-tab-interval") {
         setTabPeriod(getTabProps(message.tabId), message.period);
+    } else if (message.event == "set-fixed-url") {
+        let obj = getTabProps(message.tabId);
+        obj.fixedUrl = message.url;
     } else if (message.event == "scroll") {
         // A page is telling us its scroll position
         let obj = getTabProps(message.tabId)
@@ -678,6 +715,7 @@ async function updateMenuForTab(tabId) {
     promises.push(browser.menus.update("reloadmatic-mnu-smart", { checked: obj.smart }));
     promises.push(browser.menus.update("reloadmatic-mnu-sticky", { checked: obj.stickyReload }));
     promises.push(browser.menus.update("reloadmatic-mnu-disable-cache", { checked: obj.nocache }));
+    promises.push(browser.menus.update("reloadmatic-mnu-fix-url", { checked: obj.fixedUrl != undefined }));
 
     // Enable/disable "Remember Page" based on incognito mode
     let tab = await tabPromise;
