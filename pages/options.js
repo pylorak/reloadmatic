@@ -11,6 +11,7 @@ var radSmartTimingTextDelay;
 var chkNotifUnconfirmedPost;
 var chkNotifNavigateAway;
 var chkNotifTextInput;
+var chkFixedUrlSetsStickyReload;
 
 function isEmpty(str) {
     return (!str || (0 === str.length));
@@ -29,6 +30,7 @@ function storeSettings(evt) {
     s.defaults.stickyReload = chkDefStickyReload.checked;
     s.defaults.nocache = chkDefDisableCache.checked;
     s.pinSetsRemember = chkPinningSetsRemember.checked;
+    s.fixedUrlSetsStickyReload = chkFixedUrlSetsStickyReload.checked;
     s.smartTiming.typeReaction = document.getElementById('SmartTimingTypeReaction').elements['SmartTimingTypeReaction'].value;
     s.notifications.unconfirmedPost = chkNotifUnconfirmedPost.checked;
     s.notifications.navigateAway = chkNotifNavigateAway.checked;
@@ -42,7 +44,7 @@ function storeSettings(evt) {
     browser.storage.local.set({ settings: background.Settings });
 }
 
-document.addEventListener("DOMContentLoaded", (event) => {
+document.addEventListener("DOMContentLoaded", async function(event) {
     chkDefRandomize = document.getElementById("defRandomize");
     chkDefOnlyUnsuccessful = document.getElementById("defOnlyUnsuccessful");
     chkDefSmartTiming = document.getElementById("defSmartTiming");
@@ -52,6 +54,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     radSmartTimingTextDisable = document.getElementById('radSmartTimingTextDisable');
     radSmartTimingTextDelay = document.getElementById('radSmartTimingTextDelay');
     txtSmartTimingActivityDelay = document.getElementById("txtSmartTimingActivityDelay");
+    chkFixedUrlSetsStickyReload = document.getElementById("chkFixedUrlSetsStickyReload");
     chkNotifUnconfirmedPost = document.getElementById("chkNotifUnconfirmedPost");
     chkNotifNavigateAway = document.getElementById("chkNotifNavigateAway");
     chkNotifTextInput = document.getElementById("chkNotifTextInput");
@@ -68,6 +71,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
         radSmartTimingTextDelay,
         radSmartTimingTextDisable,
         txtSmartTimingActivityDelay,
+        chkFixedUrlSetsStickyReload,
         chkNotifUnconfirmedPost,
         chkNotifNavigateAway,
         chkNotifTextInput
@@ -76,29 +80,28 @@ document.addEventListener("DOMContentLoaded", (event) => {
         inputs[i].addEventListener('input', storeSettings);
     }
 
-    document.getElementById("btnClearRememberedPages").addEventListener('click', () => {
-        browser.storage.local.remove(["urlMemory"]).then(() => {
-            background.urlMemory = new Map();
-            browser.notifications.create({
-                "type": "basic",
-                "iconUrl": browser.extension.getURL("icon.svg"),
-                "title": "ReloadMatic",
-                "message": "Remembered pages have been cleared."
-            });
+    document.getElementById("btnClearRememberedPages").addEventListener('click', async function() {
+        await browser.storage.local.remove(["urlMemory"]);
+        background.urlMemory = new Map();
+        browser.notifications.create({
+            "type": "basic",
+            "iconUrl": browser.extension.getURL("icon.svg"),
+            "title": "ReloadMatic",
+            "message": "Remembered pages have been cleared."
         });
     });
 
-    background.LoadSettingsAsync().then((settings) => {
-        chkDefRandomize.checked = settings.defaults.randomize;
-        chkDefOnlyUnsuccessful.checked = settings.defaults.onlyOnError;
-        chkDefSmartTiming.checked = settings.defaults.smart;
-        chkDefStickyReload.checked = settings.defaults.stickyReload;
-        chkDefDisableCache.checked = settings.defaults.nocache;
-        chkPinningSetsRemember.checked = settings.pinSetsRemember;
-        txtSmartTimingActivityDelay.value = settings.smartTiming.delaySecs;
-        document.getElementById(settings.smartTiming.typeReaction).checked = true;
-        chkNotifUnconfirmedPost.checked = settings.notifications.unconfirmedPost;
-        chkNotifNavigateAway.checked = settings.notifications.navigateAway;
-        chkNotifTextInput.checked = settings.notifications.textInput;
-    });
+    let settings = await background.LoadSettingsAsync();
+    chkDefRandomize.checked = settings.defaults.randomize;
+    chkDefOnlyUnsuccessful.checked = settings.defaults.onlyOnError;
+    chkDefSmartTiming.checked = settings.defaults.smart;
+    chkDefStickyReload.checked = settings.defaults.stickyReload;
+    chkDefDisableCache.checked = settings.defaults.nocache;
+    chkPinningSetsRemember.checked = settings.pinSetsRemember;
+    txtSmartTimingActivityDelay.value = settings.smartTiming.delaySecs;
+    document.getElementById(settings.smartTiming.typeReaction).checked = true;
+    chkFixedUrlSetsStickyReload.checked = settings.fixedUrlSetsStickyReload;
+    chkNotifUnconfirmedPost.checked = settings.notifications.unconfirmedPost;
+    chkNotifNavigateAway.checked = settings.notifications.navigateAway;
+    chkNotifTextInput.checked = settings.notifications.textInput;
 });

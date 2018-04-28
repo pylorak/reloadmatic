@@ -333,6 +333,12 @@ browser.menus.onClicked.addListener(async function (info, tab) {
     } else if (info.menuItemId === 'reloadmatic-mnu-fix-url') {
         if (obj.fixedUrl != undefined) {
             obj.fixedUrl = undefined;
+            if (Settings.fixedUrlSetsStickyReload) {
+                obj.stickyReload = false;
+            }
+            if (!menu60Available) {
+                updateMenuForTab(obj.tabId);
+            }
         } else {
             let popupURL = browser.extension.getURL("pages/fix-url.html");
             let createData = {
@@ -592,6 +598,13 @@ browser.runtime.onMessage.addListener((message) => {
     } else if (message.event == "set-fixed-url") {
         let obj = getTabProps(message.tabId);
         obj.fixedUrl = message.url;
+        if (Settings.fixedUrlSetsStickyReload) {
+            obj.stickyReload = true;
+        }
+        if (!menu60Available) {
+            // Update menu for newly activated tab
+            updateMenuForTab(obj.tabId);
+        }
     } else if (message.event == "scroll") {
         // A page is telling us its scroll position
         let obj = getTabProps(message.tabId)
@@ -806,7 +819,8 @@ function GetDefaultSettings() {
             textInput: true
         },
         pinSetsRemember: true,
-        neverConfirmPost: false
+        neverConfirmPost: false,
+        fixedUrlSetsStickyReload: false
     };
 }
 

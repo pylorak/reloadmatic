@@ -47,6 +47,12 @@
         <label><input type="checkbox" id="chkPinningSetsRemember"/>Let pinning also set page remembering</label><br/>
     </form>
 
+    <h3>URL Fixing</h3>
+    <div class="subheader">A fixed URL is often used together with Sticky Reload, because one common use-case for a fixed URL is for pages that redirect. In those cases you'll probably want ReloadMatic to not disable the reload timer upon the redirect, which is what Sticky Reload is for. This option allows you to automatically set Sticky Reload when setting a fixed URL. <span class="warning">Note:</span> Only takes effect on newly set/unset fixed URLs.</div>
+    <form>
+        <label><input type="checkbox" id="chkFixedUrlSetsStickyReload"/>Let setting/unsetting a fixed URL also enable/disable Sticky Reload</label><br/>
+    </form>
+
     <h3>Remembered Pages</h3>
     <div class="subheader">Here you can delete all remembered pages. Saved ReloadMatic settings for remembered URLs are then deleted and all newly loaded pages will start with the default options unless changed and remembered again.</div>
     <form>
