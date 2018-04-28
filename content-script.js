@@ -63,6 +63,22 @@ window.addEventListener("keydown", evt => {
         toBackground("contextMenu")
     } else {
 
+        // Determine if this was a keypress we want to ignore
+        const ignoredKeys = [
+            "Alt",
+            "Control",
+            "Fn",
+            "FnLock",
+            "Hyper",
+            "Meta",
+            "ScrollLock",
+            "Super",
+            "OS"
+        ];
+        if (ignoredKeys.includes(evt.key)) {
+            return;
+        }
+
         // Determine if the user was typing into a text field
         let bTextInput = false;
         const textTypes = [
@@ -158,7 +174,7 @@ function setTimerBadge(bEnable, bThrottle) {
 }
 
 document.addEventListener("DOMContentLoaded", function(event) {
-    // the observer instance watches for chages in the <title element>
+    // the observer instance watches for changes in the <title element>
     var observer = new MutationObserver(function(mutations) {
         setTimerBadge(bRefreshing, true);
     });
