@@ -508,8 +508,9 @@ browser.webNavigation.onCommitted.addListener(async function (details) {
         }
         if (cancelTimer) {
             // On a user-initiated navigation,
-            // we cancel the timer but leave other settings alone
+            // we cancel the timer and disable a fixed URL
             obj.period = -1;
+            obj.fixedUrl = undefined;
             await rememberGet(obj);
             applyTabProps(obj);
 
