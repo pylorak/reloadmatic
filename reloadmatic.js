@@ -826,7 +826,7 @@ function GetDefaultSettings() {
         },
         pinSetsRemember: true,
         neverConfirmPost: false,
-        fixedUrlSetsStickyReload: false
+        fixedUrlSetsStickyReload: true
     };
 }
 
